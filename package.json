@@ -1,0 +1,35 @@
+{
+  "name": "tstlai",
+  "version": "0.1.0",
+  "description": "A TypeScript AI assistant module that can be easily added to projects",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "typescript",
+    "assistant",
+    "module"
+  ],
+  "author": "Stig",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^29.0.0",
+    "@types/node": "^24.10.1",
+    "jest": "^29.0.0",
+    "ts-jest": "^29.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "openai": "^4.0.0"
+  }
+}
