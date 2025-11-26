@@ -2,86 +2,143 @@
 
 ## Project Overview
 
-This directory contains a project named "tstlai" which appears to be a TypeScript-based AI assistant or language interface project. Based on the limited files present, this is a nascent project that is in early stages of development.
+This directory contains the "tstlai" project, a TypeScript-based AI assistant interface library. The project provides a unified API for interacting with various AI providers like OpenAI, Anthropic, Google, etc.
 
 ### Key Information
 
 - **Project Name**: tstlai
-- **Primary Language**: TypeScript (inferred from project name and context)
-- **Purpose**: Appears to be an AI assistant/language interface, possibly for testing or demonstration purposes
+- **Primary Language**: TypeScript
+- **Purpose**: A TypeScript library that provides a simple interface for interacting with various AI providers
 - **License**: MIT License
 
 ### Project Structure
 
-Currently, the project has a minimal structure:
 ```
 /home/stig/dev/ai/zaguan/labs/tstlai/
 ├── LICENSE (MIT License)
-├── README.md (Basic project information)
+├── package.json (Project configuration and dependencies)
+├── README.md (Project documentation)
+├── tsconfig.json (TypeScript configuration)
+├── IDEAI.md (This file)
 ├── .git/ (Version control)
-└── docs/
-    └── initial-thoughts.md (Conceptual documentation)
+├── dist/ (Compiled output)
+├── docs/
+│   └── initial-thoughts.md (Conceptual documentation)
+├── examples/ (Usage examples)
+│   ├── basic-example.ts
+│   └── comprehensive-example.ts
+├── src/ (Source code)
+│   ├── index.ts (Main entry point)
+│   ├── core/ (Core functionality)
+│   │   └── TSTLAI.ts (Main TSTLAI class)
+│   ├── types/ (TypeScript type definitions)
+│   │   └── index.ts
+│   ├── providers/ (AI provider implementations)
+│   │   ├── BaseAIProvider.ts
+│   │   └── OpenAIProvider.ts
+│   └── utils/ (Utility functions)
+└── test.ts (Simple test file)
 ```
 
-## Documentation
+## Core Components
 
-### README.md
-Contains basic project identification:
-- Project name: tstlai
-- Brief description mentioning TypeScript and AI
-- Simple setup and usage instructions placeholder
+### Main TSTLAI Class
+The core of the library is the `TSTLAI` class located in `src/core/TSTLAI.ts`. This class provides:
+- Conversation history management
+- Provider initialization and management
+- Message sending and response handling
+- Configuration management
 
-### docs/initial-thoughts.md
-Contains conceptual thinking about the project:
-- Ideas about creating a TypeScript-based AI assistant
-- Discussion of potential architecture approaches
-- Notes about leveraging existing AI models and SDKs
-- Thoughts on implementation strategies
+### Provider Abstraction
+The library uses a provider abstraction pattern to support multiple AI services:
+- `BaseAIProvider.ts` defines the abstract interface
+- `OpenAIProvider.ts` provides a concrete implementation for OpenAI
+- Easy to extend for other providers like Anthropic, Google, etc.
 
-## Development Status
-
-This project is in very early development stages with:
-- Basic project structure established
-- Conceptual documentation in place
-- Version control initialized
-- MIT license applied
+### Type Definitions
+TypeScript types are defined in `src/types/index.ts` including:
+- `ConversationMessage`: Structure for chat messages
+- `AIProvider`: Interface for AI provider implementations
+- `TSTLAIConfig`: Configuration options for the TSTLAI instance
 
 ## Building and Running
 
-As this is an early-stage project, specific build and run commands are not yet established. Based on the TypeScript indication, the project would likely use:
-
+### Installation
 ```bash
-# Install dependencies (once package.json is created)
 npm install
+```
 
-# Build the project (once build scripts are defined)
+### Building
+```bash
 npm run build
+```
+This compiles TypeScript files from `src/` to JavaScript in the `dist/` directory.
 
-# Run the project (once entry points are defined)
-npm start
-
-# Development mode (once configured)
+### Development
+```bash
 npm run dev
+```
+Watch mode for continuous compilation during development.
+
+### Testing
+```bash
+npm test
+```
+Runs a simple test to verify functionality.
+
+### Examples
+```bash
+# Run basic example
+npm run example:basic
+
+# Run comprehensive example
+npm run example:comprehensive
 ```
 
 ## Development Conventions
 
-Since this is a new project, formal conventions have not yet been established. However, based on the context:
+1. **Language**: TypeScript is the primary language
+2. **Architecture**: Modular design with clear separation of concerns
+3. **Provider Pattern**: Abstract provider interface allows for easy extension to new AI services
+4. **Type Safety**: Strong typing through TypeScript interfaces and types
+5. **Conversation Management**: Built-in handling of conversation history
+6. **Configuration**: Flexible configuration system for different providers and settings
 
-1. **Language**: TypeScript is the intended primary language
-2. **Documentation**: Initial thoughts are captured in markdown files in the docs directory
-3. **Version Control**: Git is being used for version control
-4. **Licensing**: MIT License has been applied
+## Key Features Implemented
 
-## Next Steps
+1. **Core TSTLAI Class**: Main interface for AI interactions
+2. **Provider Abstraction**: Common interface for different AI providers
+3. **Conversation History**: Automatic management of message history
+4. **Multiple Providers**: Support for different AI services (currently OpenAI implemented)
+5. **Type Safety**: Full TypeScript typing for all components
+6. **Examples**: Sample usage code demonstrating features
 
-To develop this project further, the following would typically be needed:
-1. Package configuration (package.json)
-2. Source code directory structure (src/)
-3. Implementation of the concepts outlined in initial-thoughts.md
-4. Testing framework setup
-5. Build and deployment configurations
+## Future Enhancement Opportunities
 
-## Project Context
+1. Add more provider implementations (Anthropic, Google, etc.)
+2. Implement streaming responses
+3. Add more sophisticated conversation management
+4. Add middleware support for preprocessing/postprocessing
+5. Implement caching mechanisms
+6. Add rate limiting and retry logic
 
-This project appears to be part of a larger AI initiative under the "zaguan" organization, specifically in a "labs" directory suggesting experimental or research-oriented work.
+## Usage
+
+The library is designed to be simple to use:
+
+```typescript
+import { TSTLAI } from 'tstlai';
+
+// With placeholder provider
+const ai = new TSTLAI({
+  provider: {
+    type: 'custom'
+  }
+});
+
+// Send a message
+ai.sendMessage('Hello, how are you?')
+  .then(response => {
+    console.log('AI Response:', response);
+  });
+```
