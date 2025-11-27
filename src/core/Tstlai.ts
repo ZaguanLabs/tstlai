@@ -45,7 +45,11 @@ export class Tstlai {
 
   private initializeCache(cacheConfig?: any): TranslationCache {
     if (cacheConfig?.type === 'redis') {
-      return new RedisCache(cacheConfig.connectionString, cacheConfig.ttl);
+      return new RedisCache(
+        cacheConfig.connectionString, 
+        cacheConfig.ttl,
+        cacheConfig.keyPrefix
+      );
     }
     return new InMemoryCache(cacheConfig?.ttl);
   }

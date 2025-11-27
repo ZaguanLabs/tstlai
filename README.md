@@ -95,10 +95,13 @@ const translator = new Tstlai({
   cache: {
     type: 'redis',
     connectionString: 'redis://localhost:6379', // or 'redis+socket:///tmp/redis.sock'
-    ttl: 86400 // 24 hours
+    ttl: 86400, // 24 hours
+    keyPrefix: 'tstlai:' // Default namespace
   }
 });
 ```
+
+**Note on Schema**: Redis is schema-less. `tstlai` automatically creates keys using the format `tstlai:<hash>:<targetLang>`. No manual database creation is required.
 
 ### Environment Variables
 

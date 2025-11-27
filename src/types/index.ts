@@ -15,6 +15,7 @@ export interface CacheConfig {
   type: 'memory' | 'redis' | 'sql';
   ttl?: number; // Time to live in seconds
   connectionString?: string; // For Redis/SQL
+  keyPrefix?: string; // Optional namespace, default 'tstlai:'
 }
 
 export interface AIProvider {

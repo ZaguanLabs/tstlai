@@ -13,6 +13,7 @@ export interface CacheConfig {
     type: 'memory' | 'redis' | 'sql';
     ttl?: number;
     connectionString?: string;
+    keyPrefix?: string;
 }
 export interface AIProvider {
     translate(texts: string[], targetLang: string): Promise<string[]>;

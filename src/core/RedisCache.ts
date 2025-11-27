@@ -5,16 +5,19 @@ export class RedisCache implements TranslationCache {
   private redis: Redis;
   private ttl: number;
 
-  constructor(connectionString?: string, ttl: number = 3600) {
+  constructor(connectionString?: string, ttl: number = 3600, keyPrefix: string = 'tstlai:') {
     this.ttl = ttl;
     
     const url = connectionString || process.env.REDIS_URL;
+    const options = {
+      keyPrefix: keyPrefix
+    };
     
     if (url) {
-      this.redis = new Redis(url);
+      this.redis = new Redis(url, options);
     } else {
       // Defaults to localhost:6379
-      this.redis = new Redis();
+      this.redis = new Redis(options);
     }
 
     this.redis.on('error', (err) => {
