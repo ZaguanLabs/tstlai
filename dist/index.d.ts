@@ -1,3 +1,3 @@
-export { TSTLAI } from './core/TSTLAI';
-export type { TSTLAIConfig, ConversationMessage, AIProvider } from './types';
+export { Tstlai } from './core/Tstlai';
+export type { TranslationConfig, ProcessedPage, AIProvider } from './types';
 //# sourceMappingURL=index.d.ts.map

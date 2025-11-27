@@ -1,60 +1,63 @@
-// Comprehensive example of TSTLAI usage
+// Comprehensive example of Tstlai usage
 
-import { TSTLAI, TSTLAIConfig } from './src';
+import { Tstlai, TranslationConfig } from '../src';
 
 async function runExample() {
-  console.log('=== TSTLAI Example ===\n');
+  console.log('=== Tstlai Translation Engine Example ===\n');
 
   // Example 1: Using the placeholder provider
-  console.log('1. Using placeholder provider:');
-  const config1: TSTLAIConfig = {
+  console.log('1. Initializing Engine...');
+  const config: TranslationConfig = {
+    targetLang: 'es',
     provider: {
       type: 'custom'
+    },
+    cache: {
+      type: 'memory',
+      ttl: 60
     }
   };
 
-  const ai1 = new TSTLAI(config1);
+  const translator = new Tstlai(config);
   
-  const response1 = await ai1.sendMessage('Hello, what can you do?');
-  console.log('Response:', response1);
-  
-  const response2 = await ai1.sendMessage('Tell me a joke');
-  console.log('Response:', response2);
-  
-  console.log('Conversation history:');
-  console.log(ai1.getConversationHistory());
-  console.log();
+  // Example 2: Processing a full HTML page
+  console.log('2. Processing HTML page...');
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head><title>Example Page</title></head>
+      <body>
+        <header>
+          <h1>Welcome User</h1>
+        </header>
+        <main>
+          <p>This is a paragraph needing translation.</p>
+          <button data-no-translate>Save</button>
+        </main>
+      </body>
+    </html>
+  `;
 
-  // Example 2: Using OpenAI provider (placeholder)
-  console.log('2. OpenAI provider configuration:');
-  const config2: TSTLAIConfig = {
-    provider: {
-      type: 'openai',
-      apiKey: 'your-openai-api-key',
-      model: 'gpt-3.5-turbo'
-    },
-    systemPrompt: 'You are a helpful assistant.',
-    temperature: 0.7
-  };
+  const result = await translator.process(html);
+  console.log('Original Length:', html.length);
+  console.log('Translated Length:', result.html.length);
+  console.log('Translated HTML Snippet:', result.html.substring(0, 200) + '...');
+  console.log('Stats:', {
+    translated: result.translatedCount,
+    cached: result.cachedCount
+  });
 
-  const ai2 = new TSTLAI(config2);
-  console.log('Provider info:', ai2.getProviderInfo());
-  console.log();
+  // Example 3: Demonstrating Cache Hit
+  console.log('\n3. Demonstrating Cache Hit...');
+  const result2 = await translator.process(html);
+  console.log('Stats (Second Run):', {
+    translated: result2.translatedCount,
+    cached: result2.cachedCount
+  });
 
-  // Example 3: Conversation management
-  console.log('3. Conversation management:');
-  const ai3 = new TSTLAI({ provider: { type: 'custom' } });
-  
-  await ai3.sendMessage('What is the capital of France?');
-  await ai3.sendMessage('What about Germany?');
-  
-  console.log('Before clearing:');
-  console.log(`Conversation has ${ai3.getConversationHistory().length} messages`);
-  
-  ai3.clearConversation();
-  
-  console.log('After clearing:');
-  console.log(`Conversation has ${ai3.getConversationHistory().length} messages`);
+  if (result2.cachedCount > 0 && result2.translatedCount === 0) {
+    console.log('SUCCESS: Cache hit confirmed.');
+  }
 }
 
 // Run the example

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TSTLAI = void 0;
-var TSTLAI_1 = require("./core/TSTLAI");
-Object.defineProperty(exports, "TSTLAI", { enumerable: true, get: function () { return TSTLAI_1.TSTLAI; } });
+exports.Tstlai = void 0;
+var Tstlai_1 = require("./core/Tstlai");
+Object.defineProperty(exports, "Tstlai", { enumerable: true, get: function () { return Tstlai_1.Tstlai; } });
 //# sourceMappingURL=index.js.map

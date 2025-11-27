@@ -1,17 +1,12 @@
-import { ConversationMessage, TSTLAIConfig } from '../types';
+import { TranslationConfig, ProcessedPage } from '../types';
 export declare class TSTLAI {
     private config;
     private provider;
-    private conversationHistory;
-    constructor(config: TSTLAIConfig);
+    private cache;
+    private htmlProcessor;
+    constructor(config: TranslationConfig);
     private initializeProvider;
-    sendMessage(message: string): Promise<string>;
-    getConversationHistory(): ConversationMessage[];
-    clearConversation(): void;
-    getConfig(): TSTLAIConfig;
-    getProviderInfo(): {
-        name: string;
-        capabilities: string[];
-    };
+    private initializeCache;
+    process(html: string): Promise<ProcessedPage>;
 }
 //# sourceMappingURL=TSTLAI.d.ts.map

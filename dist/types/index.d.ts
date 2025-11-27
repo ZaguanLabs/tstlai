@@ -1,24 +1,33 @@
-export interface ConversationMessage {
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-    timestamp: Date;
+export interface TranslationConfig {
+    targetLang: string;
+    provider: AIProviderConfig;
+    cache?: CacheConfig;
+}
+export interface AIProviderConfig {
+    type: 'openai' | 'anthropic' | 'google' | 'custom';
+    apiKey?: string;
+    model?: string;
+    baseUrl?: string;
+}
+export interface CacheConfig {
+    type: 'memory' | 'redis' | 'sql';
+    ttl?: number;
+    connectionString?: string;
 }
 export interface AIProvider {
-    sendMessage: (message: string) => Promise<string>;
-    getModelInfo: () => {
+    translate(texts: string[], targetLang: string): Promise<string[]>;
+    getModelInfo(): {
         name: string;
         capabilities: string[];
     };
 }
-export interface TSTLAIConfig {
-    provider: {
-        type: 'openai' | 'anthropic' | 'google' | 'custom';
-        apiKey?: string;
-        model?: string;
-        baseUrl?: string;
-    };
-    systemPrompt?: string;
-    maxTokens?: number;
-    temperature?: number;
+export interface TranslationCache {
+    get(hash: string): Promise<string | null>;
+    set(hash: string, translation: string): Promise<void>;
+}
+export interface ProcessedPage {
+    html: string;
+    translatedCount: number;
+    cachedCount: number;
 }
 //# sourceMappingURL=index.d.ts.map

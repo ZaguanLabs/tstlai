@@ -8,13 +8,13 @@ class OpenAIProvider extends BaseAIProvider_1.BaseAIProvider {
         this.apiKey = apiKey;
         this.model = model;
     }
-    async sendMessage(message) {
-        return `OpenAI response to: ${message}`;
+    async translate(texts, targetLang) {
+        return texts.map(text => `[${targetLang}] ${text}`);
     }
     getModelInfo() {
         return {
             name: this.model,
-            capabilities: ['text-generation', 'chat']
+            capabilities: ['text-generation', 'translation', 'json-mode']
         };
     }
 }
