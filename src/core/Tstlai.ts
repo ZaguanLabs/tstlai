@@ -53,17 +53,17 @@ export class Tstlai {
   /**
    * Translate a single text string
    */
-  async translateText(text: string): Promise<string> {
+  async translateText(text: string, targetLangOverride?: string): Promise<string> {
     const hash = crypto.createHash('sha256').update(text.trim()).digest('hex');
-    const result = await this.translateBatch([{ text: text.trim(), hash }]);
+    const result = await this.translateBatch([{ text: text.trim(), hash }], targetLangOverride);
     return result.translations.get(hash) || text;
   }
 
   /**
    * Core translation pipeline: Check cache -> Translate Misses -> Update Cache
    */
-  async translateBatch(items: { text: string, hash: string }[]): Promise<{ translations: Map<string, string>, cachedCount: number, translatedCount: number }> {
-    const targetLang = this.config.targetLang;
+  async translateBatch(items: { text: string, hash: string }[], targetLangOverride?: string): Promise<{ translations: Map<string, string>, cachedCount: number, translatedCount: number }> {
+    const targetLang = targetLangOverride || this.config.targetLang;
     const translations = new Map<string, string>();
     const cacheMisses: { text: string, hash: string }[] = [];
     let cachedCount = 0;

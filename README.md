@@ -162,6 +162,33 @@ export default function Page() {
 }
 ```
 
+### Next.js (`next-intl` Compatible)
+
+Migration from `next-intl` is zero-effort. Use your existing `en.json` as the source of truth.
+
+1. Create the adapter:
+
+```typescript
+// src/i18n.ts
+import { Tstlai, integrations } from 'tstlai';
+import enMessages from '../messages/en.json';
+
+const translator = new Tstlai({ targetLang: 'en', provider: { type: 'openai' } });
+export const { getTranslations } = integrations.createNextIntlAdapter(translator, enMessages);
+```
+
+2. Use in Server Components (just like `next-intl`):
+
+```tsx
+import { getTranslations } from '@/i18n';
+
+export default async function Page({ params: { locale } }) {
+  const t = await getTranslations(locale);
+  
+  return <h1>{t('landing.hero.title')}</h1>;
+}
+```
+
 ### Fastify Plugin
 
 ```typescript
