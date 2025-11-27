@@ -37,8 +37,8 @@ async function main() {
     },
     cache: {
       type: 'memory',
-      ttl: 3600 // Cache duration in seconds
-    }
+      ttl: 3600, // Cache duration in seconds
+    },
   });
 
   // 2. Your raw HTML content
@@ -60,6 +60,7 @@ main();
 ```
 
 ### Output
+
 ```html
 <article>
   <h1>Bienvenido al Futuro</h1>
@@ -79,11 +80,13 @@ main();
 
 The `Tstlai` constructor accepts a configuration object:
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `targetLang` | `string` | The ISO language code to translate to (e.g., 'es', 'fr', 'jp'). |
-| `provider` | `object` | Configuration for the AI provider (API key, model, etc.). |
-| `cache` | `object` | Cache strategy configuration. Supports `memory` (default) and `redis`. |
+| Option               | Type       | Description                                                                    |
+| -------------------- | ---------- | ------------------------------------------------------------------------------ |
+| `targetLang`         | `string`   | The ISO language code to translate to (e.g., 'es', 'fr', 'jp').                |
+| `provider`           | `object`   | Configuration for the AI provider (API key, model, etc.).                      |
+| `cache`              | `object`   | Cache strategy configuration. Supports `memory` (default) and `redis`.         |
+| `excludedTerms`      | `string[]` | List of words/phrases to exclude from translation.                             |
+| `translationContext` | `string`   | Description of context (e.g., "B2B Marketing") to improve translation quality. |
 
 ### Redis Caching
 
@@ -96,8 +99,8 @@ const translator = new Tstlai({
     type: 'redis',
     connectionString: 'redis://localhost:6379', // or 'redis+socket:///tmp/redis.sock'
     ttl: 86400, // 24 hours
-    keyPrefix: 'tstlai:' // Default namespace
-  }
+    keyPrefix: 'tstlai:', // Default namespace
+  },
 });
 ```
 
@@ -107,13 +110,12 @@ const translator = new Tstlai({
 
 You can configure the OpenAI provider using standard environment variables:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OPENAI_API_KEY` | Your OpenAI API Key | `undefined` |
-| `OPENAI_MODEL` | The model to use | `gpt-3.5-turbo` |
-| `OPENAI_BASE_URL` | Custom API endpoint | `https://api.openai.com/v1` |
-| `REDIS_URL` | Redis connection string | `redis://localhost:6379` |
-
+| Variable          | Description             | Default                     |
+| ----------------- | ----------------------- | --------------------------- |
+| `OPENAI_API_KEY`  | Your OpenAI API Key     | `undefined`                 |
+| `OPENAI_MODEL`    | The model to use        | `gpt-3.5-turbo`             |
+| `OPENAI_BASE_URL` | Custom API endpoint     | `https://api.openai.com/v1` |
+| `REDIS_URL`       | Redis connection string | `redis://localhost:6379`    |
 
 ## � Framework Integration
 
@@ -158,8 +160,12 @@ import { Translate } from '@/lib/tstlai';
 export default function Page() {
   return (
     <main>
-      <h1><Translate>Welcome to Next.js</Translate></h1>
-      <p><Translate>This text is translated on the server.</Translate></p>
+      <h1>
+        <Translate>Welcome to Next.js</Translate>
+      </h1>
+      <p>
+        <Translate>This text is translated on the server.</Translate>
+      </p>
     </main>
   );
 }
@@ -187,7 +193,7 @@ import { getTranslations } from '@/i18n';
 
 export default async function Page({ params: { locale } }) {
   const t = await getTranslations(locale);
-  
+
   return <h1>{t('landing.hero.title')}</h1>;
 }
 ```
@@ -205,7 +211,7 @@ import { getTranslations } from '@/lib/translator';
 export default async function Layout({ children, params: { locale } }) {
   // Fetch raw messages object for hydration
   const messages = await (await getTranslations(locale)).messages; // Or use getMessages if available
-  
+
   return (
     <TstlaiProvider locale={locale} initialMessages={messages}>
       {children}

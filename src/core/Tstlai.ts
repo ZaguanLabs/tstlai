@@ -10,6 +10,7 @@ export class Tstlai {
   private provider: AIProvider;
   private cache: TranslationCache;
   private htmlProcessor: HTMLProcessor;
+  private excludedTerms: string[] = [];
 
   private static RTL_LANGUAGES = new Set(['ar', 'he', 'fa', 'ur', 'ps', 'sd', 'ug']);
 
@@ -22,6 +23,15 @@ export class Tstlai {
 
     // Initialize Cache
     this.cache = this.initializeCache(config.cache);
+
+    // Initialize Excluded Terms
+    const envTerms = process.env.TSTLAI_EXCLUDED_TEXT
+      ? process.env.TSTLAI_EXCLUDED_TEXT.split(',')
+      : [];
+    const configTerms = config.excludedTerms || [];
+    this.excludedTerms = [...new Set([...configTerms, ...envTerms])]
+      .map((t) => t.trim())
+      .filter(Boolean);
   }
 
   private initializeProvider(providerConfig: any): AIProvider {
@@ -94,7 +104,12 @@ export class Tstlai {
       const textsToTranslate = cacheMisses.map((n) => n.text);
 
       try {
-        const translatedTexts = await this.provider.translate(textsToTranslate, targetLang);
+        const translatedTexts = await this.provider.translate(
+          textsToTranslate,
+          targetLang,
+          this.excludedTerms,
+          this.config.translationContext,
+        );
 
         cacheMisses.forEach(async (item, index) => {
           const translation = translatedTexts[index];

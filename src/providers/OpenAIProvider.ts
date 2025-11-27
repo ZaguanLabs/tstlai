@@ -29,7 +29,12 @@ export class OpenAIProvider extends BaseAIProvider {
     });
   }
 
-  async translate(texts: string[], targetLang: string): Promise<string[]> {
+  async translate(
+    texts: string[],
+    targetLang: string,
+    excludedTerms?: string[],
+    context?: string,
+  ): Promise<string[]> {
     // Language name mapping
     const langNames: Record<string, string> = {
       // Tier 1 (High Proficiency)
@@ -99,10 +104,30 @@ export class OpenAIProvider extends BaseAIProvider {
 
     const targetLangName = langNames[targetLang] || targetLang;
 
-    const systemPrompt = `You are a professional translation engine. Translate the provided JSON array of strings to ${targetLangName}.
-Do not translate HTML tags, class names, or variables.
-Maintain the original tone and context.
+    let systemPrompt = `# Role
+You are an expert native translator. You translate content to ${targetLangName} with the fluency and nuance of a highly educated native speaker.
+
+# Context
+${context ? `The content is for: ${context}. Adapt the tone to be appropriate for this context.` : 'The content is general web content.'}
+
+# Task
+Translate the provided texts into idiomatic ${targetLangName}.
+
+# Style Guide
+- **Natural Flow**: Avoid literal translations. Rephrase sentences to sound completely natural to a native speaker.
+- **Vocabulary**: Use precise, culturally relevant terminology. Avoid awkward "translationese" or robotic phrasing.
+- **Tone**: Maintain the original intent but adapt the wording to fit the target culture's expectations.
+- **HTML Safety**: Do NOT translate HTML tags, class names, IDs, or attributes.
+- **Interpolation**: Do NOT translate variables (e.g., {{name}}, {count}).
+
+# Format
 Return ONLY a JSON array of strings in the exact same order as the input.`;
+
+    if (excludedTerms && excludedTerms.length > 0) {
+      systemPrompt += `\n\n# Exclusions
+Do NOT translate the following terms. Keep them exactly as they appear in the source:
+${excludedTerms.map((term) => `- ${term}`).join('\n')}`;
+    }
 
     try {
       const response = await this.client.chat.completions.create({

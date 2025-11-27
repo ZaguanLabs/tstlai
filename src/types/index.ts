@@ -2,6 +2,8 @@ export interface TranslationConfig {
   targetLang: string;
   provider: AIProviderConfig;
   cache?: CacheConfig;
+  excludedTerms?: string[]; // Words/Phrases to never translate
+  translationContext?: string; // High-level context (e.g. "Marketing site for B2B SaaS")
 }
 
 export interface AIProviderConfig {
@@ -19,7 +21,12 @@ export interface CacheConfig {
 }
 
 export interface AIProvider {
-  translate(texts: string[], targetLang: string): Promise<string[]>;
+  translate(
+    texts: string[],
+    targetLang: string,
+    excludedTerms?: string[],
+    context?: string,
+  ): Promise<string[]>;
   getModelInfo(): { name: string; capabilities: string[] };
 }
 
