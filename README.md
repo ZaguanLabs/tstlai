@@ -133,6 +133,35 @@ app.get('/', (req, res) => {
 });
 ```
 
+### Next.js (App Router)
+
+For Next.js App Router, use the provided Server Component wrapper to ensure hydration safety.
+
+1. Create a shared instance:
+
+```typescript
+// src/lib/tstlai.ts
+import { Tstlai, integrations } from 'tstlai';
+
+const translator = new Tstlai({ targetLang: 'es', provider: { type: 'openai' } });
+export const { Translate } = integrations.createNextIntegration(translator);
+```
+
+2. Use in your components:
+
+```tsx
+import { Translate } from '@/lib/tstlai';
+
+export default function Page() {
+  return (
+    <main>
+      <h1><Translate>Welcome to Next.js</Translate></h1>
+      <p><Translate>This text is translated on the server.</Translate></p>
+    </main>
+  );
+}
+```
+
 ### Fastify Plugin
 
 ```typescript

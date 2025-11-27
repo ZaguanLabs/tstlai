@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import { AIProvider, TranslationConfig, TranslationCache, ProcessedPage } from '../types';
 import { OpenAIProvider } from '../providers/OpenAIProvider';
 import { HTMLProcessor, TextNodeRef } from './HTMLProcessor';
@@ -50,6 +51,64 @@ export class Tstlai {
   }
 
   /**
+   * Translate a single text string
+   */
+  async translateText(text: string): Promise<string> {
+    const hash = crypto.createHash('sha256').update(text.trim()).digest('hex');
+    const result = await this.translateBatch([{ text: text.trim(), hash }]);
+    return result.translations.get(hash) || text;
+  }
+
+  /**
+   * Core translation pipeline: Check cache -> Translate Misses -> Update Cache
+   */
+  async translateBatch(items: { text: string, hash: string }[]): Promise<{ translations: Map<string, string>, cachedCount: number, translatedCount: number }> {
+    const targetLang = this.config.targetLang;
+    const translations = new Map<string, string>();
+    const cacheMisses: { text: string, hash: string }[] = [];
+    let cachedCount = 0;
+    let translatedCount = 0;
+
+    // 1. Check Cache
+    await Promise.all(items.map(async (item) => {
+      const cacheKey = `${item.hash}:${targetLang}`;
+      const cachedText = await this.cache.get(cacheKey);
+
+      if (cachedText) {
+        translations.set(item.hash, cachedText);
+        cachedCount++;
+      } else {
+        if (!cacheMisses.find(m => m.hash === item.hash)) {
+          cacheMisses.push(item);
+        }
+      }
+    }));
+
+    // 2. Translate Misses
+    if (cacheMisses.length > 0) {
+      const textsToTranslate = cacheMisses.map(n => n.text);
+      
+      try {
+        const translatedTexts = await this.provider.translate(textsToTranslate, targetLang);
+        
+        cacheMisses.forEach(async (item, index) => {
+          const translation = translatedTexts[index];
+          if (translation) {
+            translations.set(item.hash, translation);
+            const cacheKey = `${item.hash}:${targetLang}`;
+            await this.cache.set(cacheKey, translation);
+          }
+        });
+        translatedCount = cacheMisses.length;
+      } catch (error) {
+        console.error('Translation failed:', error);
+      }
+    }
+
+    return { translations, cachedCount, translatedCount };
+  }
+
+  /**
    * Main processing function: Takes HTML, translates it, returns new HTML
    */
   async process(html: string): Promise<ProcessedPage> {
@@ -63,57 +122,14 @@ export class Tstlai {
       return { html, translatedCount: 0, cachedCount: 0 };
     }
 
-    // 2. Check Cache
-    const translations = new Map<string, string>();
-    const cacheMisses: TextNodeRef[] = [];
-    let cachedCount = 0;
+    // 2. Translate Batch
+    // TextNodeRef already has text and hash
+    const { translations, cachedCount, translatedCount } = await this.translateBatch(textNodes);
 
-    await Promise.all(textNodes.map(async (node) => {
-      // Composite key: hash + targetLang
-      // In a real DB, we might store by hash and have columns for langs, 
-      // but for key-value store, we need a composite key.
-      const cacheKey = `${node.hash}:${targetLang}`;
-      const cachedText = await this.cache.get(cacheKey);
-
-      if (cachedText) {
-        translations.set(node.hash, cachedText);
-        cachedCount++;
-      } else {
-        // Avoid duplicate requests for same text in same page
-        if (!cacheMisses.find(m => m.hash === node.hash)) {
-          cacheMisses.push(node);
-        }
-      }
-    }));
-
-    // 3. Translate Misses
-    let translatedCount = 0;
-    if (cacheMisses.length > 0) {
-      const textsToTranslate = cacheMisses.map(n => n.text);
-      
-      try {
-        const translatedTexts = await this.provider.translate(textsToTranslate, targetLang);
-        
-        // Map back to nodes and update cache
-        cacheMisses.forEach(async (node, index) => {
-          const translation = translatedTexts[index];
-          if (translation) {
-            translations.set(node.hash, translation);
-            const cacheKey = `${node.hash}:${targetLang}`;
-            await this.cache.set(cacheKey, translation);
-          }
-        });
-        translatedCount = cacheMisses.length;
-      } catch (error) {
-        console.error('Translation failed:', error);
-        // Fallback: Keep original text for failed translations
-      }
-    }
-
-    // 4. Reconstruct
+    // 3. Reconstruct
     this.htmlProcessor.applyTranslations(textNodes, translations);
 
-    // 5. Set Page Attributes (lang, dir)
+    // 4. Set Page Attributes (lang, dir)
     const langCode = targetLang.split('_')[0].toLowerCase();
     const isRtl = Tstlai.RTL_LANGUAGES.has(langCode);
     this.htmlProcessor.setPageAttributes(root, targetLang, isRtl ? 'rtl' : 'ltr');
