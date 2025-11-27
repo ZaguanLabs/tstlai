@@ -3,14 +3,22 @@ import { BaseAIProvider } from './BaseAIProvider';
 export class OpenAIProvider extends BaseAIProvider {
   private apiKey: string;
   private model: string;
+  private baseUrl: string;
 
-  constructor(apiKey: string, model: string = 'gpt-3.5-turbo') {
+  constructor(apiKey?: string, model?: string, baseUrl?: string) {
     super();
-    this.apiKey = apiKey;
-    this.model = model;
+    this.apiKey = apiKey || process.env.OPENAI_API_KEY || '';
+    this.model = model || process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
+    this.baseUrl = baseUrl || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+
+    if (!this.apiKey) {
+      console.warn('OpenAI API Key not provided and not found in environment variables.');
+    }
   }
 
   async translate(texts: string[], targetLang: string): Promise<string[]> {
+    console.log(`[OpenAIProvider] Translating with Model: ${this.model}, BaseURL: ${this.baseUrl}`);
+    
     // In a real implementation, this would make an API call to OpenAI
     // Constructing the system prompt as per docs
     /*

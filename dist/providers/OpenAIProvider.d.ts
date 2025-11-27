@@ -2,7 +2,8 @@ import { BaseAIProvider } from './BaseAIProvider';
 export declare class OpenAIProvider extends BaseAIProvider {
     private apiKey;
     private model;
-    constructor(apiKey: string, model?: string);
+    private baseUrl;
+    constructor(apiKey?: string, model?: string, baseUrl?: string);
     translate(texts: string[], targetLang: string): Promise<string[]>;
     getModelInfo(): {
         name: string;

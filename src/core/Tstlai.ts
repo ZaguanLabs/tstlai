@@ -23,7 +23,11 @@ export class Tstlai {
   private initializeProvider(providerConfig: any): AIProvider {
     switch (providerConfig.type) {
       case 'openai':
-        return new OpenAIProvider(providerConfig.apiKey || '', providerConfig.model);
+        return new OpenAIProvider(
+          providerConfig.apiKey,
+          providerConfig.model,
+          providerConfig.baseUrl
+        );
       default:
         // Fallback / Custom
         return {

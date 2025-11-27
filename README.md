@@ -31,8 +31,8 @@ async function main() {
     targetLang: 'es', // Target language code
     provider: {
       type: 'openai',
-      apiKey: process.env.OPENAI_API_KEY, // Your API Key
-      model: 'gpt-4o-mini' // Recommended for speed/cost
+      // apiKey, model, and baseUrl can be omitted if set via env vars:
+      // OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL
     },
     cache: {
       type: 'memory',
@@ -83,6 +83,17 @@ The `Tstlai` constructor accepts a configuration object:
 | `targetLang` | `string` | The ISO language code to translate to (e.g., 'es', 'fr', 'jp'). |
 | `provider` | `object` | Configuration for the AI provider (API key, model, etc.). |
 | `cache` | `object` | Cache strategy configuration (`memory`, `redis`, etc.). |
+
+### Environment Variables
+
+You can configure the OpenAI provider using standard environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OPENAI_API_KEY` | Your OpenAI API Key | `undefined` |
+| `OPENAI_MODEL` | The model to use | `gpt-3.5-turbo` |
+| `OPENAI_BASE_URL` | Custom API endpoint | `https://api.openai.com/v1` |
+
 
 ## 🛡️ Preventing Translation
 
