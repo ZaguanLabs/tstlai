@@ -10,6 +10,7 @@ Unlike traditional i18n libraries that require maintaining massive JSON files, `
 - **HTML-Safe**: Intelligent parsing ensures your HTML structure, classes, and attributes remain untouched. Only text content is translated.
 - **Smart Caching**: Uses SHA-256 content hashing to cache translations. Once a sentence is translated, it's served instantly from memory (or Redis/SQL in future updates).
 - **AI-Powered**: Pluggable AI providers (currently OpenAI) allow for high-quality, context-aware translations.
+- **RTL Support**: Automatically detects Right-to-Left languages (like Arabic, Hebrew) and sets the `dir="rtl"` attribute on your HTML.
 - **Selective Translation**: Respects `data-no-translate` attributes and ignores `<script>`, `<style>`, and `<code>` tags automatically.
 
 ## 📦 Installation

@@ -69,4 +69,25 @@ export class HTMLProcessor {
       }
     });
   }
+
+  setPageAttributes(root: HTMLElement, lang: string, dir: 'ltr' | 'rtl'): void {
+    const htmlElement = root.querySelector('html');
+    if (htmlElement) {
+      htmlElement.setAttribute('lang', lang);
+      htmlElement.setAttribute('dir', dir);
+    } else {
+      // If no html tag, maybe it's a fragment.
+      // We could try to set it on the root element if it's a single element?
+      // For now, let's assume if there is no html tag, we might be processing a fragment
+      // and the user handles the container.
+      // OR: we can wrap it? No, that changes structure too much.
+      
+      // If the root itself is an element (like a div), set dir on it.
+      if (root instanceof HTMLElement && root.tagName) {
+         root.setAttribute('dir', dir);
+         // Usually lang is on html, but can be on container
+         root.setAttribute('lang', lang);
+      }
+    }
+  }
 }

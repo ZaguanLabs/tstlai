@@ -8,6 +8,8 @@ export class Tstlai {
   private provider: AIProvider;
   private cache: TranslationCache;
   private htmlProcessor: HTMLProcessor;
+  
+  private static RTL_LANGUAGES = new Set(['ar', 'he', 'fa', 'ur', 'ps', 'sd', 'ug']);
 
   constructor(config: TranslationConfig) {
     this.config = config;
@@ -110,6 +112,11 @@ export class Tstlai {
 
     // 4. Reconstruct
     this.htmlProcessor.applyTranslations(textNodes, translations);
+
+    // 5. Set Page Attributes (lang, dir)
+    const langCode = targetLang.split('_')[0].toLowerCase();
+    const isRtl = Tstlai.RTL_LANGUAGES.has(langCode);
+    this.htmlProcessor.setPageAttributes(root, targetLang, isRtl ? 'rtl' : 'ltr');
 
     return {
       html: root.toString(),

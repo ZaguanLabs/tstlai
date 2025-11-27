@@ -30,6 +30,60 @@ export class OpenAIProvider extends BaseAIProvider {
   async translate(texts: string[], targetLang: string): Promise<string[]> {
     // Language name mapping
     const langNames: Record<string, string> = {
+      // Tier 1 (High Proficiency)
+      'en_US': 'English (United States)',
+      'en_GB': 'English (United Kingdom)',
+      'de_DE': 'German (Germany)',
+      'es_ES': 'Spanish (Spain)',
+      'es_MX': 'Spanish (Mexico)',
+      'fr_FR': 'French (France)',
+      'it_IT': 'Italian (Italy)',
+      'ja_JP': 'Japanese (Japan)',
+      'pt_BR': 'Portuguese (Brazil)',
+      'pt_PT': 'Portuguese (Portugal)',
+      'zh_CN': 'Chinese (Simplified)',
+      'zh_TW': 'Chinese (Traditional)',
+      
+      // Tier 2 (Good)
+      'ar_SA': 'Arabic (Saudi Arabia)',
+      'bn_BD': 'Bengali (Bangladesh)',
+      'cs_CZ': 'Czech (Czech Republic)',
+      'da_DK': 'Danish (Denmark)',
+      'el_GR': 'Greek (Greece)',
+      'fi_FI': 'Finnish (Finland)',
+      'he_IL': 'Hebrew (Israel)',
+      'hi_IN': 'Hindi (India)',
+      'hu_HU': 'Hungarian (Hungary)',
+      'id_ID': 'Indonesian (Indonesia)',
+      'ko_KR': 'Korean (South Korea)',
+      'nl_NL': 'Dutch (Netherlands)',
+      'nb_NO': 'Norwegian (Norway)',
+      'pl_PL': 'Polish (Poland)',
+      'ro_RO': 'Romanian (Romania)',
+      'ru_RU': 'Russian (Russia)',
+      'sv_SE': 'Swedish (Sweden)',
+      'th_TH': 'Thai (Thailand)',
+      'tr_TR': 'Turkish (Turkey)',
+      'uk_UA': 'Ukrainian (Ukraine)',
+      'vi_VN': 'Vietnamese (Vietnam)',
+
+      // Tier 3 (Functional)
+      'bg_BG': 'Bulgarian (Bulgaria)',
+      'ca_ES': 'Catalan (Spain)',
+      'fa_IR': 'Persian (Iran)',
+      'hr_HR': 'Croatian (Croatia)',
+      'lt_LT': 'Lithuanian (Lithuania)',
+      'lv_LV': 'Latvian (Latvia)',
+      'ms_MY': 'Malay (Malaysia)',
+      'sk_SK': 'Slovak (Slovakia)',
+      'sl_SI': 'Slovenian (Slovenia)',
+      'sr_RS': 'Serbian (Serbia)',
+      'sw_KE': 'Swahili (Kenya)',
+      'tl_PH': 'Tagalog (Philippines)',
+      'ur_PK': 'Urdu (Pakistan)',
+      
+      // Fallbacks
+      'en': 'English',
       'es': 'Spanish',
       'fr': 'French',
       'de': 'German',
@@ -38,7 +92,7 @@ export class OpenAIProvider extends BaseAIProvider {
       'zh': 'Chinese',
       'ja': 'Japanese',
       'ru': 'Russian',
-      // Add more as needed, fallback to code if not found
+      'ko': 'Korean',
     };
     
     const targetLangName = langNames[targetLang] || targetLang;
