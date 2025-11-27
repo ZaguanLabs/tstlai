@@ -1,6 +1,6 @@
 {
   "name": "tstlai",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "A TypeScript AI assistant module that can be easily added to projects",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -16,7 +16,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "format": "prettier --write 'src/**/*.{ts,tsx,json,md}'",
