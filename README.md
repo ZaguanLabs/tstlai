@@ -112,7 +112,28 @@ You can configure the OpenAI provider using standard environment variables:
 | `REDIS_URL` | Redis connection string | `redis://localhost:6379` |
 
 
-## 🛡️ Preventing Translation
+## � Framework Integration
+
+### Express / Node.js Middleware
+
+To automatically translate all HTML responses in an Express app:
+
+```typescript
+import express from 'express';
+import { Tstlai, integrations } from 'tstlai';
+
+const app = express();
+const translator = new Tstlai({ targetLang: 'es', provider: { type: 'openai' } });
+
+// Apply middleware
+app.use(integrations.createExpressMiddleware(translator));
+
+app.get('/', (req, res) => {
+  res.send('<h1>Hello World</h1>'); // Automatically translated to <h1>Hola Mundo</h1>
+});
+```
+
+## �🛡️ Preventing Translation
 
 To prevent specific elements from being translated, add the `data-no-translate` attribute to any HTML tag:
 
