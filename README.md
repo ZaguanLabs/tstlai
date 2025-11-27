@@ -101,7 +101,7 @@ const translator = new Tstlai({
 });
 ```
 
-**Note on Schema**: Redis is schema-less. `tstlai` automatically creates keys using the format `tstlai:<hash>:<targetLang>`. No manual database creation is required.
+**Multi-Language Support**: `tstlai` automatically generates cache keys using the format `tstlai:<hash>:<lang>`. This means translations for different languages (e.g., French vs Spanish) are stored separately and will never collide.
 
 ### Environment Variables
 
