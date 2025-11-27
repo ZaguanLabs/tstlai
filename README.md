@@ -83,7 +83,22 @@ The `Tstlai` constructor accepts a configuration object:
 |--------|------|-------------|
 | `targetLang` | `string` | The ISO language code to translate to (e.g., 'es', 'fr', 'jp'). |
 | `provider` | `object` | Configuration for the AI provider (API key, model, etc.). |
-| `cache` | `object` | Cache strategy configuration (`memory`, `redis`, etc.). |
+| `cache` | `object` | Cache strategy configuration. Supports `memory` (default) and `redis`. |
+
+### Redis Caching
+
+To use Redis, provide the `connectionString` or set `REDIS_URL` env var.
+
+```typescript
+const translator = new Tstlai({
+  // ...
+  cache: {
+    type: 'redis',
+    connectionString: 'redis://localhost:6379', // or 'redis+socket:///tmp/redis.sock'
+    ttl: 86400 // 24 hours
+  }
+});
+```
 
 ### Environment Variables
 
@@ -94,6 +109,7 @@ You can configure the OpenAI provider using standard environment variables:
 | `OPENAI_API_KEY` | Your OpenAI API Key | `undefined` |
 | `OPENAI_MODEL` | The model to use | `gpt-3.5-turbo` |
 | `OPENAI_BASE_URL` | Custom API endpoint | `https://api.openai.com/v1` |
+| `REDIS_URL` | Redis connection string | `redis://localhost:6379` |
 
 
 ## 🛡️ Preventing Translation

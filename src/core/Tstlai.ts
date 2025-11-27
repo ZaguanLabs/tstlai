@@ -2,6 +2,7 @@ import { AIProvider, TranslationConfig, TranslationCache, ProcessedPage } from '
 import { OpenAIProvider } from '../providers/OpenAIProvider';
 import { HTMLProcessor, TextNodeRef } from './HTMLProcessor';
 import { InMemoryCache } from './Cache';
+import { RedisCache } from './RedisCache';
 
 export class Tstlai {
   private config: TranslationConfig;
@@ -43,8 +44,7 @@ export class Tstlai {
 
   private initializeCache(cacheConfig?: any): TranslationCache {
     if (cacheConfig?.type === 'redis') {
-      // TODO: Implement Redis Cache
-      console.warn('Redis cache not implemented yet, falling back to memory');
+      return new RedisCache(cacheConfig.connectionString, cacheConfig.ttl);
     }
     return new InMemoryCache(cacheConfig?.ttl);
   }
