@@ -192,6 +192,40 @@ export default async function Page({ params: { locale } }) {
 }
 ```
 
+### Client-Side Hydration (Recommended)
+
+To use `useTranslations` in Client Components without props drilling, add the `TstlaiProvider`.
+
+1. **Server Layout (`layout.tsx`):**
+
+```tsx
+import { TstlaiProvider } from 'tstlai/client';
+import { getTranslations } from '@/lib/translator';
+
+export default async function Layout({ children, params: { locale } }) {
+  // Fetch raw messages object for hydration
+  const messages = await (await getTranslations(locale)).messages; // Or use getMessages if available
+  
+  return (
+    <TstlaiProvider locale={locale} initialMessages={messages}>
+      {children}
+    </TstlaiProvider>
+  );
+}
+```
+
+2. **Client Component (`navbar.tsx`):**
+
+```tsx
+'use client';
+import { useTranslations } from 'tstlai/client';
+
+export function Navbar() {
+  const t = useTranslations();
+  return <nav>{t('nav.home')}</nav>;
+}
+```
+
 ### Fastify Plugin
 
 ```typescript
