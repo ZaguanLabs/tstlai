@@ -5,11 +5,12 @@ export class OpenAIProvider extends BaseAIProvider {
   private client: OpenAI;
   private model: string;
 
-  constructor(apiKey?: string, model?: string, baseUrl?: string) {
+  constructor(apiKey?: string, model?: string, baseUrl?: string, timeout?: number) {
     super();
     const resolvedApiKey = apiKey || process.env.OPENAI_API_KEY || '';
     this.model = model || process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
     const resolvedBaseUrl = baseUrl || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+    const resolvedTimeout = timeout || 5000; // Default 5s timeout for middleware safety
 
     // Debug logging
     console.log(`[OpenAIProvider] Initializing with:`);
@@ -18,6 +19,7 @@ export class OpenAIProvider extends BaseAIProvider {
     );
     console.log(`  - Model: ${this.model}`);
     console.log(`  - Base URL: ${resolvedBaseUrl}`);
+    console.log(`  - Timeout: ${resolvedTimeout}ms`);
 
     if (!resolvedApiKey) {
       console.warn('OpenAI API Key not provided and not found in environment variables.');
@@ -26,6 +28,7 @@ export class OpenAIProvider extends BaseAIProvider {
     this.client = new OpenAI({
       apiKey: resolvedApiKey,
       baseURL: resolvedBaseUrl,
+      timeout: resolvedTimeout,
     });
   }
 

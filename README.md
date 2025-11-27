@@ -1,17 +1,19 @@
 # tstlai: Just-In-Time Web Localization Engine
 
-**tstlai** (TypeScript Translation AI) is a middleware-ready library that automatically translates your web application's HTML content on the fly using AI.
+**tstlai** (TypeScript Translation AI) is a middleware for **Just-In-Time AI localization**. It features an intelligent caching layer to minimize token costs and latency.
 
-Unlike traditional i18n libraries that require maintaining massive JSON files, `tstlai` intercepts your HTML, extracts the text, and uses AI to provide context-aware translations, all while caching the results for production-grade performance.
+**Philosophy:** Don't pay to translate the same string twice.
+
+Unlike traditional i18n libraries that require maintaining massive JSON files, `tstlai` intercepts your HTML, extracts the text, and uses AI to provide context-aware translations on the fly, serving repeated requests instantly from cache.
 
 ## 🚀 Features
 
-- **Just-In-Time Translation**: No manual translation files. Content is translated as it is rendered.
+- **Zero-Config Translation**: No manual translation files. Content is translated as it is rendered.
+- **Fail-Open Architecture**: If the AI provider fails or times out, the original content is served immediately.
+- **Cost-Efficient**: Smart caching (Redis/Memory) ensures you only pay for unique string translations once.
 - **HTML-Safe**: Intelligent parsing ensures your HTML structure, classes, and attributes remain untouched. Only text content is translated.
-- **Smart Caching**: Uses SHA-256 content hashing to cache translations. Once a sentence is translated, it's served instantly from memory (or Redis/SQL in future updates).
-- **AI-Powered**: Pluggable AI providers (currently OpenAI) allow for high-quality, context-aware translations.
-- **RTL Support**: Automatically detects Right-to-Left languages (like Arabic, Hebrew) and sets the `dir="rtl"` attribute on your HTML.
-- **Selective Translation**: Respects `data-no-translate` attributes and ignores `<script>`, `<style>`, and `<code>` tags automatically.
+- **Context-Aware**: AI understands your content's context (e.g., "Marketing", "Legal") for native-quality phrasing.
+- **RTL Support**: Automatically detects Right-to-Left languages (like Arabic, Hebrew) and sets the `dir="rtl"` attribute.
 
 ## 📦 Installation
 

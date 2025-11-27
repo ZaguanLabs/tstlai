@@ -11,6 +11,7 @@ export interface AIProviderConfig {
   apiKey?: string;
   model?: string;
   baseUrl?: string;
+  timeout?: number; // ms
 }
 
 export interface CacheConfig {

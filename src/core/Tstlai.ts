@@ -41,6 +41,7 @@ export class Tstlai {
           providerConfig.apiKey,
           providerConfig.model,
           providerConfig.baseUrl,
+          providerConfig.timeout,
         );
       default:
         // Fallback / Custom
