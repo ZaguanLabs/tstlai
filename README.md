@@ -133,7 +133,45 @@ app.get('/', (req, res) => {
 });
 ```
 
-## �🛡️ Preventing Translation
+### Fastify Plugin
+
+```typescript
+import Fastify from 'fastify';
+import { Tstlai, integrations } from 'tstlai';
+
+const fastify = Fastify();
+const translator = new Tstlai({ targetLang: 'fr', provider: { type: 'openai' } });
+
+fastify.register(integrations.createFastifyPlugin(translator));
+```
+
+### Astro Middleware
+
+```typescript
+// src/middleware.ts
+import { Tstlai, integrations } from 'tstlai';
+
+const translator = new Tstlai({ targetLang: 'es', provider: { type: 'openai' } });
+
+export const onRequest = integrations.createAstroMiddleware(translator);
+```
+
+### Remix Handler
+
+Wrap your `handleRequest` in `entry.server.tsx`:
+
+```typescript
+// app/entry.server.tsx
+import { Tstlai, integrations } from 'tstlai';
+
+const translator = new Tstlai({ targetLang: 'de', provider: { type: 'openai' } });
+
+export default integrations.createRemixHandler(translator, function handleRequest(...) {
+  // ... your original logic ...
+});
+```
+
+## 🛡️ Preventing Translation
 
 To prevent specific elements from being translated, add the `data-no-translate` attribute to any HTML tag:
 
