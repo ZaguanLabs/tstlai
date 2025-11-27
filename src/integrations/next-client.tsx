@@ -50,7 +50,7 @@ export const useTranslations = () => {
       if (current === undefined || current === null) break;
       current = current[part];
     }
-    
+
     return current !== undefined ? current : key;
   };
 

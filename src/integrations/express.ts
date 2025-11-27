@@ -20,10 +20,10 @@ interface NextFunction {
 
 export const createExpressMiddleware = (translator: Tstlai) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const originalWrite = res.write;
+    // const originalWrite = res.write;
     const originalEnd = res.end;
     let buffer = '';
-    let isHtml = false;
+    // let isHtml = false;
 
     // Helper to check content type
     const checkHtml = () => {
@@ -32,7 +32,7 @@ export const createExpressMiddleware = (translator: Tstlai) => {
     };
 
     // Override write to buffer content
-    res.write = function (chunk: any, ...args: any[]) {
+    res.write = function (chunk: any, ..._args: any[]) {
       // We only buffer if it looks like we might be HTML or we haven't decided yet
       // Simple strategy: Buffer everything.
       // Production strategy: Check Content-Type header as soon as possible.
@@ -49,15 +49,16 @@ export const createExpressMiddleware = (translator: Tstlai) => {
       // Check if HTML
       if (checkHtml()) {
         // We must handle the async translation
-        translator.process(buffer)
+        translator
+          .process(buffer)
           .then((result) => {
             const translatedHtml = result.html;
             // Update Content-Length if it was set
             if (res.getHeader('content-length')) {
               res.setHeader('content-length', Buffer.byteLength(translatedHtml));
             }
-            
-            // Restore original methods to avoid loop? 
+
+            // Restore original methods to avoid loop?
             // Actually we just call apply on the original function reference.
             originalEnd.apply(res, [translatedHtml, ...args]);
           })
@@ -66,7 +67,7 @@ export const createExpressMiddleware = (translator: Tstlai) => {
             // Fallback to original content
             originalEnd.apply(res, [buffer, ...args]);
           });
-          
+
         return res;
       } else {
         // Not HTML, just pass through

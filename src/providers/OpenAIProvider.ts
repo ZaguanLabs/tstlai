@@ -13,7 +13,9 @@ export class OpenAIProvider extends BaseAIProvider {
 
     // Debug logging
     console.log(`[OpenAIProvider] Initializing with:`);
-    console.log(`  - API Key: ${resolvedApiKey ? resolvedApiKey.substring(0, 15) + '...' : 'NOT SET'}`);
+    console.log(
+      `  - API Key: ${resolvedApiKey ? resolvedApiKey.substring(0, 15) + '...' : 'NOT SET'}`,
+    );
     console.log(`  - Model: ${this.model}`);
     console.log(`  - Base URL: ${resolvedBaseUrl}`);
 
@@ -31,70 +33,70 @@ export class OpenAIProvider extends BaseAIProvider {
     // Language name mapping
     const langNames: Record<string, string> = {
       // Tier 1 (High Proficiency)
-      'en_US': 'English (United States)',
-      'en_GB': 'English (United Kingdom)',
-      'de_DE': 'German (Germany)',
-      'es_ES': 'Spanish (Spain)',
-      'es_MX': 'Spanish (Mexico)',
-      'fr_FR': 'French (France)',
-      'it_IT': 'Italian (Italy)',
-      'ja_JP': 'Japanese (Japan)',
-      'pt_BR': 'Portuguese (Brazil)',
-      'pt_PT': 'Portuguese (Portugal)',
-      'zh_CN': 'Chinese (Simplified)',
-      'zh_TW': 'Chinese (Traditional)',
-      
+      en_US: 'English (United States)',
+      en_GB: 'English (United Kingdom)',
+      de_DE: 'German (Germany)',
+      es_ES: 'Spanish (Spain)',
+      es_MX: 'Spanish (Mexico)',
+      fr_FR: 'French (France)',
+      it_IT: 'Italian (Italy)',
+      ja_JP: 'Japanese (Japan)',
+      pt_BR: 'Portuguese (Brazil)',
+      pt_PT: 'Portuguese (Portugal)',
+      zh_CN: 'Chinese (Simplified)',
+      zh_TW: 'Chinese (Traditional)',
+
       // Tier 2 (Good)
-      'ar_SA': 'Arabic (Saudi Arabia)',
-      'bn_BD': 'Bengali (Bangladesh)',
-      'cs_CZ': 'Czech (Czech Republic)',
-      'da_DK': 'Danish (Denmark)',
-      'el_GR': 'Greek (Greece)',
-      'fi_FI': 'Finnish (Finland)',
-      'he_IL': 'Hebrew (Israel)',
-      'hi_IN': 'Hindi (India)',
-      'hu_HU': 'Hungarian (Hungary)',
-      'id_ID': 'Indonesian (Indonesia)',
-      'ko_KR': 'Korean (South Korea)',
-      'nl_NL': 'Dutch (Netherlands)',
-      'nb_NO': 'Norwegian (Norway)',
-      'pl_PL': 'Polish (Poland)',
-      'ro_RO': 'Romanian (Romania)',
-      'ru_RU': 'Russian (Russia)',
-      'sv_SE': 'Swedish (Sweden)',
-      'th_TH': 'Thai (Thailand)',
-      'tr_TR': 'Turkish (Turkey)',
-      'uk_UA': 'Ukrainian (Ukraine)',
-      'vi_VN': 'Vietnamese (Vietnam)',
+      ar_SA: 'Arabic (Saudi Arabia)',
+      bn_BD: 'Bengali (Bangladesh)',
+      cs_CZ: 'Czech (Czech Republic)',
+      da_DK: 'Danish (Denmark)',
+      el_GR: 'Greek (Greece)',
+      fi_FI: 'Finnish (Finland)',
+      he_IL: 'Hebrew (Israel)',
+      hi_IN: 'Hindi (India)',
+      hu_HU: 'Hungarian (Hungary)',
+      id_ID: 'Indonesian (Indonesia)',
+      ko_KR: 'Korean (South Korea)',
+      nl_NL: 'Dutch (Netherlands)',
+      nb_NO: 'Norwegian (Norway)',
+      pl_PL: 'Polish (Poland)',
+      ro_RO: 'Romanian (Romania)',
+      ru_RU: 'Russian (Russia)',
+      sv_SE: 'Swedish (Sweden)',
+      th_TH: 'Thai (Thailand)',
+      tr_TR: 'Turkish (Turkey)',
+      uk_UA: 'Ukrainian (Ukraine)',
+      vi_VN: 'Vietnamese (Vietnam)',
 
       // Tier 3 (Functional)
-      'bg_BG': 'Bulgarian (Bulgaria)',
-      'ca_ES': 'Catalan (Spain)',
-      'fa_IR': 'Persian (Iran)',
-      'hr_HR': 'Croatian (Croatia)',
-      'lt_LT': 'Lithuanian (Lithuania)',
-      'lv_LV': 'Latvian (Latvia)',
-      'ms_MY': 'Malay (Malaysia)',
-      'sk_SK': 'Slovak (Slovakia)',
-      'sl_SI': 'Slovenian (Slovenia)',
-      'sr_RS': 'Serbian (Serbia)',
-      'sw_KE': 'Swahili (Kenya)',
-      'tl_PH': 'Tagalog (Philippines)',
-      'ur_PK': 'Urdu (Pakistan)',
-      
+      bg_BG: 'Bulgarian (Bulgaria)',
+      ca_ES: 'Catalan (Spain)',
+      fa_IR: 'Persian (Iran)',
+      hr_HR: 'Croatian (Croatia)',
+      lt_LT: 'Lithuanian (Lithuania)',
+      lv_LV: 'Latvian (Latvia)',
+      ms_MY: 'Malay (Malaysia)',
+      sk_SK: 'Slovak (Slovakia)',
+      sl_SI: 'Slovenian (Slovenia)',
+      sr_RS: 'Serbian (Serbia)',
+      sw_KE: 'Swahili (Kenya)',
+      tl_PH: 'Tagalog (Philippines)',
+      ur_PK: 'Urdu (Pakistan)',
+
       // Fallbacks
-      'en': 'English',
-      'es': 'Spanish',
-      'fr': 'French',
-      'de': 'German',
-      'it': 'Italian',
-      'pt': 'Portuguese',
-      'zh': 'Chinese',
-      'ja': 'Japanese',
-      'ru': 'Russian',
-      'ko': 'Korean',
+      en: 'English',
+      es: 'Spanish',
+      fr: 'French',
+      de: 'German',
+      it: 'Italian',
+      pt: 'Portuguese',
+      zh: 'Chinese',
+      ja: 'Japanese',
+      ru: 'Russian',
+      ko: 'Korean',
     };
-    
+
     const targetLangName = langNames[targetLang] || targetLang;
 
     const systemPrompt = `You are a professional translation engine. Translate the provided JSON array of strings to ${targetLangName}.
@@ -106,11 +108,11 @@ Return ONLY a JSON array of strings in the exact same order as the input.`;
       const response = await this.client.chat.completions.create({
         model: this.model,
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: JSON.stringify(texts) }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: JSON.stringify(texts) },
         ],
         temperature: 0.3,
-        response_format: { type: "json_object" } // Ensure JSON output
+        response_format: { type: 'json_object' }, // Ensure JSON output
       });
 
       const content = response.choices[0]?.message?.content;
@@ -119,7 +121,7 @@ Return ONLY a JSON array of strings in the exact same order as the input.`;
       }
 
       const parsed = JSON.parse(content);
-      
+
       // Handle if the API returns an object with a key like "translations" instead of a direct array
       if (Array.isArray(parsed)) {
         return parsed;
@@ -128,11 +130,11 @@ Return ONLY a JSON array of strings in the exact same order as the input.`;
       } else {
         // Try to find the first array value in the object
         const values = Object.values(parsed);
-        const arrayValue = values.find(v => Array.isArray(v));
+        const arrayValue = values.find((v) => Array.isArray(v));
         if (arrayValue) {
           return arrayValue as string[];
         }
-        
+
         console.warn('Unexpected JSON structure from OpenAI:', parsed);
         // Fallback: return texts (failed translation) or throw
         throw new Error('Invalid JSON structure received from OpenAI');
@@ -146,7 +148,7 @@ Return ONLY a JSON array of strings in the exact same order as the input.`;
   getModelInfo(): { name: string; capabilities: string[] } {
     return {
       name: this.model,
-      capabilities: ['text-generation', 'translation', 'json-mode']
+      capabilities: ['text-generation', 'translation', 'json-mode'],
     };
   }
 }

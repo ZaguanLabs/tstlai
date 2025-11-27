@@ -34,10 +34,13 @@ export const createNextIntlAdapter = (translator: Tstlai, sourceMessages: Record
     getTranslations: async (locale: string) => {
       const flat = flatten(sourceMessages);
       const entries = Object.entries(flat);
-      
+
       const batchItems = entries.map(([_, text]) => ({
         text: text as string,
-        hash: crypto.createHash('sha256').update((text as string).trim()).digest('hex')
+        hash: crypto
+          .createHash('sha256')
+          .update((text as string).trim())
+          .digest('hex'),
       }));
 
       // Translate all messages in one batch
@@ -62,22 +65,24 @@ export const createNextIntlAdapter = (translator: Tstlai, sourceMessages: Record
       };
 
       // Expose raw messages if needed by other tools
-      // @ts-ignore
-      t.messages = resultMessages;
-      
+      (t as any).messages = resultMessages;
+
       return t;
     },
-    
+
     /**
      * Helper to get raw messages object for Client Component hydration.
      */
     getMessages: async (locale: string) => {
       const flat = flatten(sourceMessages);
       const entries = Object.entries(flat);
-      
+
       const batchItems = entries.map(([_, text]) => ({
         text: text as string,
-        hash: crypto.createHash('sha256').update((text as string).trim()).digest('hex')
+        hash: crypto
+          .createHash('sha256')
+          .update((text as string).trim())
+          .digest('hex'),
       }));
 
       const { translations } = await translator.translateBatch(batchItems, locale);
@@ -88,13 +93,13 @@ export const createNextIntlAdapter = (translator: Tstlai, sourceMessages: Record
         const translatedText = translations.get(hash) || text;
         setByPath(resultMessages, key, translatedText);
       });
-      
+
       return resultMessages;
     },
 
     // Stub for other next-intl exports
-    unstable_setRequestLocale: (locale: string) => {
+    unstable_setRequestLocale: (_locale: string) => {
       // noop
-    }
+    },
   };
 };

@@ -7,12 +7,12 @@ export class RedisCache implements TranslationCache {
 
   constructor(connectionString?: string, ttl: number = 3600, keyPrefix: string = 'tstlai:') {
     this.ttl = ttl;
-    
+
     const url = connectionString || process.env.REDIS_URL;
     const options = {
-      keyPrefix: keyPrefix
+      keyPrefix: keyPrefix,
     };
-    
+
     if (url) {
       this.redis = new Redis(url, options);
     } else {
@@ -49,7 +49,7 @@ export class RedisCache implements TranslationCache {
       console.error('[RedisCache] Set Error:', error);
     }
   }
-  
+
   // Helper to close connection if needed
   async disconnect(): Promise<void> {
     await this.redis.quit();

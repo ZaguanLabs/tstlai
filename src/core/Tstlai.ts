@@ -10,7 +10,7 @@ export class Tstlai {
   private provider: AIProvider;
   private cache: TranslationCache;
   private htmlProcessor: HTMLProcessor;
-  
+
   private static RTL_LANGUAGES = new Set(['ar', 'he', 'fa', 'ur', 'ps', 'sd', 'ug']);
 
   constructor(config: TranslationConfig) {
@@ -30,26 +30,22 @@ export class Tstlai {
         return new OpenAIProvider(
           providerConfig.apiKey,
           providerConfig.model,
-          providerConfig.baseUrl
+          providerConfig.baseUrl,
         );
       default:
         // Fallback / Custom
         return {
           translate: async (texts: string[], targetLang: string) => {
-            return texts.map(t => `[MOCK ${targetLang}] ${t}`);
+            return texts.map((t) => `[MOCK ${targetLang}] ${t}`);
           },
-          getModelInfo: () => ({ name: 'mock', capabilities: [] })
+          getModelInfo: () => ({ name: 'mock', capabilities: [] }),
         };
     }
   }
 
   private initializeCache(cacheConfig?: any): TranslationCache {
     if (cacheConfig?.type === 'redis') {
-      return new RedisCache(
-        cacheConfig.connectionString, 
-        cacheConfig.ttl,
-        cacheConfig.keyPrefix
-      );
+      return new RedisCache(cacheConfig.connectionString, cacheConfig.ttl, cacheConfig.keyPrefix);
     }
     return new InMemoryCache(cacheConfig?.ttl);
   }
@@ -66,35 +62,40 @@ export class Tstlai {
   /**
    * Core translation pipeline: Check cache -> Translate Misses -> Update Cache
    */
-  async translateBatch(items: { text: string, hash: string }[], targetLangOverride?: string): Promise<{ translations: Map<string, string>, cachedCount: number, translatedCount: number }> {
+  async translateBatch(
+    items: { text: string; hash: string }[],
+    targetLangOverride?: string,
+  ): Promise<{ translations: Map<string, string>; cachedCount: number; translatedCount: number }> {
     const targetLang = targetLangOverride || this.config.targetLang;
     const translations = new Map<string, string>();
-    const cacheMisses: { text: string, hash: string }[] = [];
+    const cacheMisses: { text: string; hash: string }[] = [];
     let cachedCount = 0;
     let translatedCount = 0;
 
     // 1. Check Cache
-    await Promise.all(items.map(async (item) => {
-      const cacheKey = `${item.hash}:${targetLang}`;
-      const cachedText = await this.cache.get(cacheKey);
+    await Promise.all(
+      items.map(async (item) => {
+        const cacheKey = `${item.hash}:${targetLang}`;
+        const cachedText = await this.cache.get(cacheKey);
 
-      if (cachedText) {
-        translations.set(item.hash, cachedText);
-        cachedCount++;
-      } else {
-        if (!cacheMisses.find(m => m.hash === item.hash)) {
-          cacheMisses.push(item);
+        if (cachedText) {
+          translations.set(item.hash, cachedText);
+          cachedCount++;
+        } else {
+          if (!cacheMisses.find((m) => m.hash === item.hash)) {
+            cacheMisses.push(item);
+          }
         }
-      }
-    }));
+      }),
+    );
 
     // 2. Translate Misses
     if (cacheMisses.length > 0) {
-      const textsToTranslate = cacheMisses.map(n => n.text);
-      
+      const textsToTranslate = cacheMisses.map((n) => n.text);
+
       try {
         const translatedTexts = await this.provider.translate(textsToTranslate, targetLang);
-        
+
         cacheMisses.forEach(async (item, index) => {
           const translation = translatedTexts[index];
           if (translation) {
@@ -117,11 +118,11 @@ export class Tstlai {
    */
   async process(html: string): Promise<ProcessedPage> {
     const targetLang = this.config.targetLang;
-    
+
     // 1. Parse and Extract
     const root = this.htmlProcessor.parse(html);
     const textNodes: TextNodeRef[] = this.htmlProcessor.extractTextNodes(root);
-    
+
     if (textNodes.length === 0) {
       return { html, translatedCount: 0, cachedCount: 0 };
     }
@@ -141,7 +142,7 @@ export class Tstlai {
     return {
       html: root.toString(),
       translatedCount,
-      cachedCount
+      cachedCount,
     };
   }
 }

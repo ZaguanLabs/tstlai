@@ -1,6 +1,9 @@
 import { Tstlai } from '../core/Tstlai';
 
-export const createRemixHandler = (translator: Tstlai, originalHandleRequest: Function) => {
+export const createRemixHandler = (
+  translator: Tstlai,
+  originalHandleRequest: (...args: any[]) => any,
+) => {
   return async (...args: any[]) => {
     // Call original handler
     // Remix entry.server handleRequest signature varies slightly but returns a Promise<Response>
@@ -16,13 +19,13 @@ export const createRemixHandler = (translator: Tstlai, originalHandleRequest: Fu
         // Clone response to read body
         const clone = response.clone();
         const body = await clone.text();
-        
+
         const result = await translator.process(body);
-        
+
         return new Response(result.html, {
           status: response.status,
           statusText: response.statusText,
-          headers: response.headers
+          headers: response.headers,
         });
       } catch (err) {
         console.error('[Tstlai] Remix Handler Error:', err);
