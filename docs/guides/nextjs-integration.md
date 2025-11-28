@@ -1,73 +1,75 @@
 # Next.js Integration
 
-tstlai provides deep integration with Next.js (App Router), allowing for Server Components translation, Client Component hydration, and `next-intl` compatibility.
+tstlai provides deep integration with Next.js (App Router).
 
-## 1. Setup
+## 1. Critical Setup: Separation of Concerns
 
-First, create a shared translator instance (e.g., in `src/lib/tstlai.ts`).
+**Important:** You must split your configuration into two files.
+
+- `translator.ts`: Server-only (imports `tstlai`, Redis, OpenAI).
+- `translator-client.ts`: Client-only (imports `tstlai/client`).
+
+If you mix these, `ioredis` will try to bundle on the client and crash your build.
+
+### Server Configuration (`src/lib/translator.ts`)
 
 ```typescript
+import 'server-only'; // Optional but recommended
 import { Tstlai, integrations } from 'tstlai';
 
-// Initialize core engine
-const translator = new Tstlai({ 
-  targetLang: 'en', // Default, will be overridden dynamically
+// Initialize core engine (Server Only)
+const translator = new Tstlai({
+  targetLang: 'en',
   provider: { type: 'openai' },
-  cache: { type: 'redis', connectionString: process.env.REDIS_URL }
+  cache: { type: 'redis', connectionString: process.env.REDIS_URL },
 });
 
-// Export Next.js helpers
+// Export Server Helpers
 export const { Translate } = integrations.createNextIntegration(translator);
 export const { getTranslations, getMessages } = integrations.createNextIntlAdapter(
-  translator, 
-  require('../../messages/en.json') // Your source of truth
+  translator,
+  require('../../messages/en.json'), // Source of truth
 );
+```
+
+### Client Configuration (`src/lib/translator-client.ts`)
+
+```typescript
+'use client';
+
+// Re-export client components from the safe entry point
+export { TstlaiProvider, useTranslations } from 'tstlai/client';
 ```
 
 ## 2. Server Components (RSC)
 
-The most efficient way to translate is in Server Components using `getTranslations`. This works exactly like `next-intl`.
+Use `getTranslations` from your **server** file.
 
 ```tsx
 // src/app/[locale]/page.tsx
-import { getTranslations } from '@/lib/tstlai';
+import { getTranslations } from '@/lib/translator';
 
 export default async function Page({ params: { locale } }) {
   const t = await getTranslations(locale);
-  
-  return (
-    <main>
-      <h1>{t('hero.title')}</h1>
-      <p>{t('hero.description')}</p>
-    </main>
-  );
+
+  return <h1>{t('hero.title')}</h1>; // Works like next-intl
 }
-```
-
-### Inline Translation Component
-For simple strings or when you don't have a JSON key, use the `<Translate>` component.
-
-```tsx
-import { Translate } from '@/lib/tstlai';
-
-<h1><Translate>Welcome to our site</Translate></h1>
 ```
 
 ## 3. Client Components
 
-To use translations in Client Components (`'use client'`), you need to hydrate the translations from the server.
+### Step A: Provider in Layout
 
-### Step A: Add Provider to Layout
-Fetch the messages on the server and pass them to the provider.
+Import `getMessages` from **server** file and `TstlaiProvider` from **client** file.
 
 ```tsx
 // src/app/[locale]/layout.tsx
-import { TstlaiProvider } from 'tstlai/client';
-import { getMessages } from '@/lib/tstlai';
+import { getMessages } from '@/lib/translator'; // Server
+import { TstlaiProvider } from '@/lib/translator-client'; // Client
 
-export default async function LocaleLayout({ children, params: { locale } }) {
+export default async function Layout({ children, params: { locale } }) {
   const messages = await getMessages(locale);
-  
+
   return (
     <TstlaiProvider locale={locale} initialMessages={messages}>
       {children}
@@ -76,17 +78,49 @@ export default async function LocaleLayout({ children, params: { locale } }) {
 }
 ```
 
-### Step B: Use Hook in Component
+### Step B: useTranslations Hook
+
+Import `useTranslations` from your **client** file.
+
+**Note:** Unlike `next-intl`, `useTranslations` does **not** support namespace arguments. You must use the full dot-notation key.
 
 ```tsx
-// src/components/navbar.tsx
+// src/components/MyComponent.tsx
 'use client';
-import { useTranslations } from 'tstlai/client';
+import { useTranslations } from '@/lib/translator-client';
 
-export function Navbar() {
+export function MyComponent() {
   const t = useTranslations();
-  return <nav>{t('nav.home')}</nav>;
+
+  // ✅ Correct
+  const title = t('home.hero.title');
+
+  // ❌ Incorrect (Namespace not supported)
+  // const t = useTranslations('home.hero');
+  // const title = t('title');
+
+  return <div>{title}</div>;
 }
+```
+
+### Step C: Variable Interpolation
+
+The standard `t()` function returns raw strings. For variable interpolation (e.g. `Hello {name}`), use a helper:
+
+```typescript
+// src/lib/utils.ts
+export function interpolate(str: string, values: Record<string, string | number>): string {
+  return str.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? `{${key}}`));
+}
+```
+
+Usage:
+
+```tsx
+import { interpolate } from '@/lib/utils';
+
+// t('welcome') -> "Hello {name}"
+<span>{interpolate(t('welcome'), { name: 'Steve' })}</span>;
 ```
 
 ## 4. HTML Translation (Static Pages)
@@ -98,10 +132,10 @@ import { Tstlai } from 'tstlai';
 
 export default async function PrivacyPage({ params: { locale } }) {
   const translator = new Tstlai({ targetLang: locale, ...config });
-  
+
   const rawHtml = `<h1>Privacy Policy</h1><p>...</p>`;
   const { html } = await translator.process(rawHtml);
-  
+
   return <div dangerouslySetInnerHTML={{ __html: html }} />;
 }
 ```

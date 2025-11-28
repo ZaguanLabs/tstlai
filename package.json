@@ -1,6 +1,6 @@
 {
   "name": "tstlai",
-  "version": "0.7.6",
+  "version": "0.7.7",
   "description": "A TypeScript AI assistant module that can be easily added to projects",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
