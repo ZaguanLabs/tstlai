@@ -61,6 +61,37 @@ export class Tstlai {
     return normalizedTarget === normalizedSource;
   }
 
+  /** Get the AI provider instance */
+  getProvider(): AIProvider {
+    return this.provider;
+  }
+
+  /** Get the target language */
+  getTargetLang(): string {
+    return this.config.targetLang;
+  }
+
+  /** Get excluded terms */
+  getExcludedTerms(): string[] {
+    return this.excludedTerms;
+  }
+
+  /** Get translation context */
+  getContext(): string | undefined {
+    return this.config.translationContext;
+  }
+
+  /** Cache a translation directly */
+  async cacheTranslation(
+    hash: string,
+    translation: string,
+    targetLangOverride?: string,
+  ): Promise<void> {
+    const targetLang = targetLangOverride || this.config.targetLang;
+    const cacheKey = `${hash}:${targetLang}`;
+    await this.cache.set(cacheKey, translation);
+  }
+
   private initializeProvider(providerConfig: any): AIProvider {
     switch (providerConfig.type) {
       case 'openai':

@@ -92,6 +92,37 @@ export default async function Layout({ children, params }) {
 3. Batches and translates via API endpoint
 4. Swaps in translated text (small flash)
 
+### Streaming Mode (Progressive Updates)
+
+For a better UX, enable streaming to see translations appear progressively instead of all at once:
+
+**Step 1: Add streaming endpoint**
+
+```typescript
+// src/app/api/tstlai/stream/route.ts
+import { createNextStreamingRouteHandler } from 'tstlai/next';
+import { getTranslator } from '@/lib/translator';
+
+export const POST = createNextStreamingRouteHandler(getTranslator());
+```
+
+**Step 2: Enable streaming in AutoTranslate**
+
+```tsx
+<AutoTranslate
+  targetLang={locale}
+  stream={true}
+  streamBuffer={1500} // Wait 1.5s before first update (optional)
+/>
+```
+
+With streaming enabled:
+
+1. Page renders with English content
+2. Translations stream in progressively
+3. After the buffer period, updates appear as they complete
+4. Much better perceived performance on large pages
+
 ### Excluding Content from Translation
 
 Use `data-no-translate` on any element:

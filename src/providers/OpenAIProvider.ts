@@ -175,10 +175,142 @@ ${excludedTerms.map((term) => `- ${term}`).join('\n')}`;
     }
   }
 
+  /**
+   * Stream translations one at a time.
+   * Uses OpenAI streaming to parse JSON array elements as they complete.
+   */
+  async *translateStream(
+    texts: string[],
+    targetLang: string,
+    excludedTerms?: string[],
+    context?: string,
+  ): AsyncGenerator<{ index: number; translation: string }> {
+    const langNames: Record<string, string> = {
+      en_US: 'English (United States)',
+      en_GB: 'English (United Kingdom)',
+      de_DE: 'German (Germany)',
+      es_ES: 'Spanish (Spain)',
+      es_MX: 'Spanish (Mexico)',
+      fr_FR: 'French (France)',
+      it_IT: 'Italian (Italy)',
+      ja_JP: 'Japanese (Japan)',
+      pt_BR: 'Portuguese (Brazil)',
+      pt_PT: 'Portuguese (Portugal)',
+      zh_CN: 'Chinese (Simplified)',
+      zh_TW: 'Chinese (Traditional)',
+      ar_SA: 'Arabic (Saudi Arabia)',
+      ko_KR: 'Korean (South Korea)',
+      nl_NL: 'Dutch (Netherlands)',
+      ru_RU: 'Russian (Russia)',
+      en: 'English',
+      es: 'Spanish',
+      fr: 'French',
+      de: 'German',
+      it: 'Italian',
+      pt: 'Portuguese',
+      zh: 'Chinese',
+      ja: 'Japanese',
+      ru: 'Russian',
+      ko: 'Korean',
+    };
+
+    const targetLangName = langNames[targetLang] || targetLang;
+
+    let systemPrompt = `# Role
+You are an expert native translator. You translate content to ${targetLangName} with the fluency and nuance of a highly educated native speaker.
+
+# Context
+${context ? `The content is for: ${context}. Adapt the tone to be appropriate for this context.` : 'The content is general web content.'}
+
+# Task
+Translate the provided texts into idiomatic ${targetLangName}.
+
+# Style Guide
+- **Natural Flow**: Avoid literal translations. Rephrase sentences to sound completely natural to a native speaker.
+- **Vocabulary**: Use precise, culturally relevant terminology. Avoid awkward "translationese" or robotic phrasing.
+- **Tone**: Maintain the original intent but adapt the wording to fit the target culture's expectations.
+- **HTML Safety**: Do NOT translate HTML tags, class names, IDs, or attributes.
+- **Interpolation**: Do NOT translate variables (e.g., {{name}}, {count}).
+
+# Format
+Return ONLY a JSON array of strings in the exact same order as the input. Each string on its own line for clarity.`;
+
+    if (excludedTerms && excludedTerms.length > 0) {
+      systemPrompt += `\n\n# Exclusions
+Do NOT translate the following terms. Keep them exactly as they appear in the source:
+${excludedTerms.map((term) => `- ${term}`).join('\n')}`;
+    }
+
+    try {
+      const stream = await this.client.chat.completions.create({
+        model: this.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: JSON.stringify(texts) },
+        ],
+        temperature: 0.3,
+        stream: true,
+      });
+
+      let currentIndex = 0;
+      let inString = false;
+      let escapeNext = false;
+      let currentString = '';
+      let arrayStarted = false;
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || '';
+
+        // Parse the streaming JSON array character by character
+        for (const char of content) {
+          if (escapeNext) {
+            currentString += char;
+            escapeNext = false;
+            continue;
+          }
+
+          if (char === '\\' && inString) {
+            currentString += char;
+            escapeNext = true;
+            continue;
+          }
+
+          if (char === '"') {
+            if (inString) {
+              // End of string - we have a complete translation
+              if (arrayStarted && currentIndex < texts.length) {
+                yield { index: currentIndex, translation: currentString };
+                currentIndex++;
+              }
+              currentString = '';
+              inString = false;
+            } else {
+              // Start of string
+              inString = true;
+            }
+            continue;
+          }
+
+          if (char === '[' && !inString) {
+            arrayStarted = true;
+            continue;
+          }
+
+          if (inString) {
+            currentString += char;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('OpenAI Streaming Translation Error:', error);
+      throw error;
+    }
+  }
+
   getModelInfo(): { name: string; capabilities: string[] } {
     return {
       name: this.model,
-      capabilities: ['text-generation', 'translation', 'json-mode'],
+      capabilities: ['text-generation', 'translation', 'json-mode', 'streaming'],
     };
   }
 }

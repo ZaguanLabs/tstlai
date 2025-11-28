@@ -104,3 +104,100 @@ export const createNextRouteHandler = (translator: Tstlai) => {
     }
   };
 };
+
+/**
+ * Creates a Streaming Route Handler for Next.js App Router.
+ * Streams translations as Server-Sent Events (SSE) for progressive updates.
+ *
+ * @example
+ * ```typescript
+ * // src/app/api/tstlai/stream/route.ts
+ * import { createNextStreamingRouteHandler } from 'tstlai/next';
+ * import { getTranslator } from '@/lib/translator';
+ *
+ * export const POST = createNextStreamingRouteHandler(getTranslator());
+ * ```
+ */
+export const createNextStreamingRouteHandler = (translator: Tstlai) => {
+  return async (req: Request): Promise<Response> => {
+    try {
+      const body = await req.json();
+      const { texts, targetLang } = body;
+
+      if (!texts || !Array.isArray(texts)) {
+        return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Check if provider supports streaming
+      const provider = translator.getProvider();
+      if (!provider.translateStream) {
+        // Fallback to batch mode
+        const items = texts.map((text: string) => {
+          const hash = crypto.createHash('sha256').update(text.trim()).digest('hex');
+          return { text, hash };
+        });
+
+        const { translations } = await translator.translateBatch(items, targetLang);
+        const results = items.map((item) => translations.get(item.hash) || item.text);
+
+        return new Response(JSON.stringify({ translations: results }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Stream translations as SSE
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            const streamGenerator = provider.translateStream!(
+              texts,
+              targetLang || translator.getTargetLang(),
+              translator.getExcludedTerms(),
+              translator.getContext(),
+            );
+
+            for await (const { index, translation } of streamGenerator) {
+              // Cache the translation
+              const hash = crypto.createHash('sha256').update(texts[index].trim()).digest('hex');
+              await translator.cacheTranslation(hash, translation);
+
+              // Send SSE event
+              const data = JSON.stringify({ index, translation });
+              controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+            }
+
+            // Signal completion
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.close();
+          } catch (error) {
+            console.error('[Tstlai] Streaming Error:', error);
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ error: 'Translation failed' })}\n\n`),
+            );
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(stream, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        },
+      });
+    } catch (error) {
+      console.error('[Tstlai] Route Handler Error:', error);
+      return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+  };
+};

@@ -29,6 +29,18 @@ export interface AIProvider {
     excludedTerms?: string[],
     context?: string,
   ): Promise<string[]>;
+
+  /**
+   * Stream translations one at a time.
+   * Yields { index, translation } as each translation completes.
+   */
+  translateStream?(
+    texts: string[],
+    targetLang: string,
+    excludedTerms?: string[],
+    context?: string,
+  ): AsyncGenerator<{ index: number; translation: string }>;
+
   getModelInfo(): { name: string; capabilities: string[] };
 }
 
