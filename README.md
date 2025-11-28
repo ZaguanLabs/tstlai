@@ -65,11 +65,11 @@ export default function RootLayout({ children }) {
 
 ## 🎯 Choose Your Integration Method
 
-| Method             | Best For                                  | Refactoring?        |
-| :----------------- | :---------------------------------------- | :------------------ |
-| **Auto-Translate** | Fastest setup, legacy apps                | None                |
-| **JIT Components** | New projects, dashboards                  | Minimal (wrap text) |
-| **JSON Adapter**   | SEO-critical pages, `next-intl` migration | Use existing JSON   |
+| Method                | Best For                                  | Refactoring?         |
+| :-------------------- | :---------------------------------------- | :------------------- |
+| **Auto-Translate**    | Fastest setup, legacy apps                | None                 |
+| **Page Translations** | New projects, dashboards                  | List strings upfront |
+| **JSON Adapter**      | SEO-critical pages, `next-intl` migration | Use existing JSON    |
 
 👉 **[Next.js Integration Guide](docs/guides/nextjs-integration.md)**
 
@@ -146,32 +146,25 @@ app.get('/', (req, res) => {
 
 ### Next.js (App Router)
 
-For Next.js App Router, use the provided Server Component wrapper to ensure hydration safety.
-
-1. Create a shared instance:
+For Next.js App Router, use `createPageTranslations()` to batch-translate all strings in one API call:
 
 ```typescript
-// src/lib/tstlai.ts
-import { Tstlai, integrations } from 'tstlai';
+// src/app/[locale]/page.tsx
+import { Tstlai } from 'tstlai';
+import { createPageTranslations } from 'tstlai/next';
 
 const translator = new Tstlai({ targetLang: 'es', provider: { type: 'openai' } });
-export const { Translate } = integrations.createNextIntegration(translator);
-```
 
-2. Use in your components:
+export default async function Page() {
+  const t = await createPageTranslations(translator, [
+    'Welcome to Next.js',
+    'This text is translated on the server.',
+  ]);
 
-```tsx
-import { Translate } from '@/lib/tstlai';
-
-export default function Page() {
   return (
     <main>
-      <h1>
-        <Translate>Welcome to Next.js</Translate>
-      </h1>
-      <p>
-        <Translate>This text is translated on the server.</Translate>
-      </p>
+      <h1>{t('Welcome to Next.js')}</h1>
+      <p>{t('This text is translated on the server.')}</p>
     </main>
   );
 }

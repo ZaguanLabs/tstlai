@@ -11,11 +11,11 @@ Welcome to the tstlai documentation.
 
 ## Framework Guides
 
-| Guide                                               | Description                                |
-| :-------------------------------------------------- | :----------------------------------------- |
-| [Next.js Integration](guides/nextjs-integration.md) | App Router, Auto-Translate, JIT Components |
-| [Express / Node.js](guides/frameworks.md)           | Middleware for server-rendered apps        |
-| [Caching](guides/caching.md)                        | Redis and in-memory caching strategies     |
+| Guide                                               | Description                                   |
+| :-------------------------------------------------- | :-------------------------------------------- |
+| [Next.js Integration](guides/nextjs-integration.md) | App Router, Auto-Translate, Page Translations |
+| [Express / Node.js](guides/frameworks.md)           | Middleware for server-rendered apps           |
+| [Caching](guides/caching.md)                        | Redis and in-memory caching strategies        |
 
 ## API Reference
 
@@ -27,5 +27,5 @@ Welcome to the tstlai documentation.
 ## Quick Links
 
 - **Fastest setup:** [Auto-Translate](getting-started/quick-start.md) — 2 minutes, zero refactoring
-- **No JSON files:** [JIT Components](guides/nextjs-integration.md#4-method-b-jit-components-no-json-files)
+- **No JSON files:** [Page Translations](guides/nextjs-integration.md#4-method-b-page-translations-no-json-files)
 - **Migrating from next-intl:** [JSON Adapter](guides/nextjs-integration.md#5-method-c-json-adapter-seo--next-intl-migration)

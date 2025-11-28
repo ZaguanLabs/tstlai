@@ -4,13 +4,13 @@ tstlai provides deep integration with Next.js (App Router).
 
 ## 1. Choose Your Method
 
-| Method             | Setup Time | Best For                                  | Trade-off               |
-| :----------------- | :--------- | :---------------------------------------- | :---------------------- |
-| **Auto-Translate** | 2 min      | Legacy apps, rapid prototyping            | Small client-side flash |
-| **JIT Components** | 5 min      | New projects, dashboards                  | Server Components only  |
-| **JSON Adapter**   | 10 min     | SEO-critical pages, `next-intl` migration | Requires JSON files     |
+| Method                | Setup Time | Best For                                  | Trade-off               |
+| :-------------------- | :--------- | :---------------------------------------- | :---------------------- |
+| **Auto-Translate**    | 2 min      | Legacy apps, rapid prototyping            | Small client-side flash |
+| **Page Translations** | 5 min      | New projects, dashboards                  | List strings upfront    |
+| **JSON Adapter**      | 10 min     | SEO-critical pages, `next-intl` migration | Requires JSON files     |
 
-**Recommendation:** Start with **Auto-Translate** to see it working, then optimize critical paths with JIT or JSON.
+**Recommendation:** Start with **Auto-Translate** to see it working, then use **Page Translations** for production pages.
 
 ---
 
@@ -86,36 +86,42 @@ export default async function Layout({ children, params }) {
 
 ---
 
-## 4. Method B: JIT Components (No JSON Files)
+## 4. Method B: Page Translations (No JSON Files)
 
-Wrap text directly in Server Components. No JSON files needed.
-
-**New in v0.7:** All `<Translate>` calls are **batched** into a single API request.
+Pre-translate all page strings in a single batch call. No JSON files, no render blocking.
 
 ```tsx
 // src/app/[locale]/dashboard/page.tsx
 import { getTranslator } from '@/lib/translator';
-import { createNextIntegration } from 'tstlai/next';
+import { createPageTranslations } from 'tstlai/next';
 
 export default async function Dashboard({ params }) {
   const { locale } = await params;
-  const { Translate } = createNextIntegration(getTranslator(locale));
 
+  // Single async call - translates all strings in one batch
+  const t = await createPageTranslations(getTranslator(locale), [
+    'Welcome back!',
+    'Here is your daily summary.',
+    'View Reports',
+  ]);
+
+  // Synchronous rendering - no blocking
   return (
     <div>
-      <h1>
-        <Translate>Welcome back!</Translate>
-      </h1>
-      <p>
-        <Translate>Here is your daily summary.</Translate>
-      </p>
-      <button>
-        <Translate>View Reports</Translate>
-      </button>
+      <h1>{t('Welcome back!')}</h1>
+      <p>{t('Here is your daily summary.')}</p>
+      <button>{t('View Reports')}</button>
     </div>
   );
 }
 ```
+
+**Why this approach?**
+
+- ✅ Single API call (batched)
+- ✅ Full SSR (SEO-friendly)
+- ✅ No render blocking
+- ✅ Strings live in your code, not JSON files
 
 ---
 

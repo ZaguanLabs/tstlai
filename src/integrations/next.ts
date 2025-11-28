@@ -1,24 +1,57 @@
 import * as crypto from 'crypto';
 import { Tstlai } from '../core/Tstlai';
 
-export const createNextIntegration = (translator: Tstlai) => {
-  return {
-    /**
-     * React Server Component for translation.
-     * Usage: <Translate>Hello World</Translate>
-     */
-    Translate: async (props: { children: string | any }) => {
-      const text = props.children;
-      // Only translate raw strings
-      if (typeof text !== 'string') return text;
+/**
+ * Pre-translate all page strings in a single batch call.
+ * Returns a synchronous `t()` function for instant rendering.
+ *
+ * @example
+ * ```tsx
+ * // src/app/[locale]/page.tsx
+ * import { getTranslator } from '@/lib/translator';
+ * import { createPageTranslations } from 'tstlai/next';
+ *
+ * export default async function Page({ params }) {
+ *   const { locale } = await params;
+ *   const t = await createPageTranslations(getTranslator(locale), [
+ *     'Welcome to our site',
+ *     'This is paragraph one.',
+ *     'This is paragraph two.',
+ *   ]);
+ *
+ *   return (
+ *     <div>
+ *       <h1>{t('Welcome to our site')}</h1>
+ *       <p>{t('This is paragraph one.')}</p>
+ *       <p>{t('This is paragraph two.')}</p>
+ *     </div>
+ *   );
+ * }
+ * ```
+ */
+export const createPageTranslations = async (
+  translator: Tstlai,
+  strings: string[],
+): Promise<(key: string) => string> => {
+  // Generate hashes and batch translate
+  const items = strings.map((text) => ({
+    text: text.trim(),
+    hash: crypto.createHash('sha256').update(text.trim()).digest('hex'),
+  }));
 
-      try {
-        return await translator.translateText(text);
-      } catch (err) {
-        console.error('[Tstlai] Next.js Translation Error:', err);
-        return text;
-      }
-    },
+  const { translations } = await translator.translateBatch(items);
+
+  // Build lookup map: source text -> translated text
+  const lookup = new Map<string, string>();
+  items.forEach((item) => {
+    const translated = translations.get(item.hash) || item.text;
+    lookup.set(item.text, translated);
+  });
+
+  // Return synchronous lookup function
+  return (key: string): string => {
+    const trimmed = key.trim();
+    return lookup.get(trimmed) || trimmed;
   };
 };
 

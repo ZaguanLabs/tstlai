@@ -103,9 +103,8 @@ Visit your app. The page will load in English, then smoothly update to Spanish a
 
 ## Next Steps
 
-| Goal                          | Guide                                                                                              |
-| :---------------------------- | :------------------------------------------------------------------------------------------------- |
-| **Faster initial load (SEO)** | Use [Server-Side Translation](../guides/nextjs-integration.md#3-method-a-json-adapter-traditional) |
-| **No JSON files at all**      | Use [JIT Components](../guides/nextjs-integration.md#4-method-b-jit-components-no-json)            |
-| **Production caching**        | [Configure Redis](../guides/caching.md)                                                            |
-| **Migrate from next-intl**    | [Migration Guide](../guides/migration-from-next-intl.md)                                           |
+| Goal                          | Guide                                                                                                |
+| :---------------------------- | :--------------------------------------------------------------------------------------------------- |
+| **Faster initial load (SEO)** | Use [Page Translations](../guides/nextjs-integration.md#4-method-b-page-translations-no-json-files)  |
+| **Production caching**        | [Configure Redis](../guides/caching.md)                                                              |
+| **Migrate from next-intl**    | Use [JSON Adapter](../guides/nextjs-integration.md#5-method-c-json-adapter-seo--next-intl-migration) |
