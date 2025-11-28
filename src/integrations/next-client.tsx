@@ -1,13 +1,13 @@
 'use client';
 
-import React, {
+import {
   createContext,
   useContext,
   useState,
   useEffect,
   useCallback,
-  ReactNode,
   Suspense,
+  type ReactNode,
 } from 'react';
 
 interface TranslationStatus {

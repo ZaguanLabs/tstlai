@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import { Suspense, createElement } from 'react';
 import { Tstlai } from '../core/Tstlai';
 
 interface TranslateHTMLProps {
@@ -18,11 +18,11 @@ interface TranslateHTMLProps {
 async function TranslatedHTML({ translator, html, as = 'div', className }: TranslateHTMLProps) {
   // Skip if source language
   if (translator.isSourceLang()) {
-    return React.createElement(as, { className, dangerouslySetInnerHTML: { __html: html } });
+    return createElement(as, { className, dangerouslySetInnerHTML: { __html: html } });
   }
 
   const { html: translatedHtml } = await translator.process(html);
-  return React.createElement(as, {
+  return createElement(as, {
     className,
     dangerouslySetInnerHTML: { __html: translatedHtml },
   });
@@ -60,7 +60,7 @@ async function TranslatedHTML({ translator, html, as = 'div', className }: Trans
  */
 export function TranslateHTML({ translator, html, as = 'div', className }: TranslateHTMLProps) {
   // Fallback shows original content immediately
-  const fallback = React.createElement(as, {
+  const fallback = createElement(as, {
     className,
     dangerouslySetInnerHTML: { __html: html },
   });
