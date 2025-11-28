@@ -12,6 +12,7 @@ export * as integrations from './integrations';
 export {
   SUPPORTED_LANGUAGES,
   SUPPORTED_LOCALE_CODES,
+  SHORT_CODE_DEFAULTS,
   TIER_1_LANGUAGES,
   TIER_2_LANGUAGES,
   TIER_3_LANGUAGES,
@@ -19,5 +20,6 @@ export {
   getLanguageInfo,
   getLanguageTier,
   getLanguagesByTier,
+  normalizeLocaleCode,
 } from './languages';
 export type { SupportedLanguage, LanguageTier } from './languages';

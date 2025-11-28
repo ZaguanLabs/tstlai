@@ -373,23 +373,93 @@ export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
 export const SUPPORTED_LOCALE_CODES = new Set(SUPPORTED_LANGUAGES.map((l) => l.code));
 
 /**
+ * Map of short language codes to their default full locale codes.
+ * Used to resolve 'en' -> 'en_US', 'es' -> 'es_ES', etc.
+ */
+export const SHORT_CODE_DEFAULTS: Record<string, string> = {
+  en: 'en_US',
+  de: 'de_DE',
+  es: 'es_ES',
+  fr: 'fr_FR',
+  it: 'it_IT',
+  ja: 'ja_JP',
+  pt: 'pt_BR',
+  zh: 'zh_CN',
+  ar: 'ar_SA',
+  bn: 'bn_BD',
+  cs: 'cs_CZ',
+  da: 'da_DK',
+  el: 'el_GR',
+  fi: 'fi_FI',
+  he: 'he_IL',
+  hi: 'hi_IN',
+  hu: 'hu_HU',
+  id: 'id_ID',
+  ko: 'ko_KR',
+  nl: 'nl_NL',
+  nb: 'nb_NO',
+  no: 'nb_NO', // Norwegian -> Bokmål
+  pl: 'pl_PL',
+  ro: 'ro_RO',
+  ru: 'ru_RU',
+  sv: 'sv_SE',
+  th: 'th_TH',
+  tr: 'tr_TR',
+  uk: 'uk_UA',
+  vi: 'vi_VN',
+  bg: 'bg_BG',
+  ca: 'ca_ES',
+  fa: 'fa_IR',
+  hr: 'hr_HR',
+  lt: 'lt_LT',
+  lv: 'lv_LV',
+  ms: 'ms_MY',
+  sk: 'sk_SK',
+  sl: 'sl_SI',
+  sr: 'sr_RS',
+  sw: 'sw_KE',
+  tl: 'tl_PH',
+  fil: 'tl_PH', // Filipino -> Tagalog
+  ur: 'ur_PK',
+};
+
+/**
+ * Normalize a locale code to the standard format (e.g., 'en-US' -> 'en_US')
+ * and resolve short codes to their defaults (e.g., 'en' -> 'en_US')
+ * @param code - Locale code in any format
+ * @returns Normalized locale code
+ */
+export function normalizeLocaleCode(code: string): string {
+  // Convert hyphens to underscores
+  const normalized = code.replace('-', '_');
+
+  // If it's already a full locale code, return it
+  if (SUPPORTED_LOCALE_CODES.has(normalized)) {
+    return normalized;
+  }
+
+  // Try to resolve short code
+  const shortCode = normalized.split('_')[0].toLowerCase();
+  return SHORT_CODE_DEFAULTS[shortCode] || normalized;
+}
+
+/**
  * Check if a locale code is supported
  * @param code - Locale code (e.g., 'en_US', 'es-ES', 'fr')
  * @returns true if supported
  */
 export function isLanguageSupported(code: string): boolean {
-  // Normalize: convert hyphens to underscores
-  const normalized = code.replace('-', '_');
+  const normalized = normalizeLocaleCode(code);
   return SUPPORTED_LOCALE_CODES.has(normalized);
 }
 
 /**
  * Get language info by locale code
- * @param code - Locale code (e.g., 'en_US', 'es-ES')
+ * @param code - Locale code (e.g., 'en_US', 'es-ES', 'en')
  * @returns Language info or undefined if not found
  */
 export function getLanguageInfo(code: string): SupportedLanguage | undefined {
-  const normalized = code.replace('-', '_');
+  const normalized = normalizeLocaleCode(code);
   return SUPPORTED_LANGUAGES.find((l) => l.code === normalized);
 }
 
