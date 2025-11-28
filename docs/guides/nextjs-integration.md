@@ -2,17 +2,17 @@
 
 tstlai provides deep integration with Next.js (App Router).
 
-> **Important:** Async Server Components block the entire page render until they complete. For the best user experience, always use Suspense boundaries to show content immediately while translations load. See [Suspense & Progressive Enhancement](#7-suspense--progressive-enhancement) for details.
-
 ## 1. Choose Your Method
 
-| Method                | Setup Time | Best For                                  | Trade-off               |
-| :-------------------- | :--------- | :---------------------------------------- | :---------------------- |
-| **Auto-Translate**    | 2 min      | Legacy apps, rapid prototyping            | Small client-side flash |
-| **Page Translations** | 5 min      | New projects, dashboards                  | List strings upfront    |
-| **JSON Adapter**      | 10 min     | SEO-critical pages, `next-intl` migration | Requires JSON files     |
+| Method                 | Setup Time | Best For                            | Trade-off               |
+| :--------------------- | :--------- | :---------------------------------- | :---------------------- |
+| **ServerTranslate** ⭐ | 2 min      | Any page, zero refactoring          | Wraps content in div    |
+| **withTranslation**    | 1 min      | Entire pages, HOC pattern           | Page-level only         |
+| **Auto-Translate**     | 2 min      | Legacy apps, rapid prototyping      | Small client-side flash |
+| **Page Translations**  | 5 min      | Fine-grained control                | List strings upfront    |
+| **JSON Adapter**       | 10 min     | SEO-critical, `next-intl` migration | Requires JSON files     |
 
-**Recommendation:** Start with **Auto-Translate** to see it working, then use **Page Translations** for production pages.
+**Recommendation:** Start with **ServerTranslate** — zero refactoring, just wrap your content.
 
 ---
 
@@ -50,9 +50,91 @@ export function getTranslator(locale: string = 'en') {
 
 ---
 
-## 3. Method A: Auto-Translate (Easiest)
+## 3. Method A: ServerTranslate (Recommended)
 
-**Zero refactoring.** Drop one component into your layout and your entire app is translated.
+**Zero refactoring.** Wrap any content and it's translated automatically. Built-in Suspense shows original content while translations load.
+
+```tsx
+// app/[locale]/about/page.tsx
+import { ServerTranslate } from 'tstlai/next';
+import { getTranslator } from '@/lib/translator';
+
+export default async function AboutPage({ params }) {
+  const { locale } = await params;
+
+  return (
+    <ServerTranslate translator={getTranslator(locale)}>
+      <main>
+        <h1>About Us</h1>
+        <p>We build amazing products for developers.</p>
+        <p>Our team is passionate about quality and innovation.</p>
+
+        <h2>Our Mission</h2>
+        <p>To make software development more accessible to everyone.</p>
+      </main>
+    </ServerTranslate>
+  );
+}
+```
+
+That's it. No string extraction, no `t()` calls, no JSON files. Your existing JSX just works.
+
+### How It Works
+
+1. Your page renders normally with English content
+2. `ServerTranslate` captures the HTML output
+3. All text nodes are extracted and translated in a single batch
+4. Translated HTML is returned
+5. Suspense shows English content instantly while translations load
+
+### Excluding Content from Translation
+
+Use `data-no-translate` on any element:
+
+```tsx
+<ServerTranslate translator={translator}>
+  <h1>Welcome to MyBrand</h1>
+  <p data-no-translate>MyBrand™ is a registered trademark.</p>
+  <code data-no-translate>npm install mybrand</code>
+</ServerTranslate>
+```
+
+---
+
+## 4. Method B: withTranslation HOC
+
+For entire pages, use the higher-order component:
+
+```tsx
+// app/[locale]/about/page.tsx
+import { withTranslation } from 'tstlai/next';
+import { getTranslator } from '@/lib/translator';
+
+function AboutPage({ locale }) {
+  return (
+    <main>
+      <h1>About Us</h1>
+      <p>We build amazing products.</p>
+    </main>
+  );
+}
+
+export default withTranslation(AboutPage, getTranslator);
+```
+
+The HOC automatically:
+
+- Extracts locale from params
+- Skips translation for source language (English)
+- Wraps output in `ServerTranslate`
+
+---
+
+## 5. Method C: Auto-Translate (Client-Side)
+
+> **Note:** Prefer `ServerTranslate` for new projects. Auto-Translate is useful for legacy apps where you can't modify page components.
+
+Drop one component into your layout and your entire app is translated.
 
 ### Step 1: Create API Endpoint
 
@@ -88,7 +170,7 @@ export default async function Layout({ children, params }) {
 
 ---
 
-## 4. Method B: Page Translations (No JSON Files)
+## 6. Method D: Page Translations (Fine-Grained Control)
 
 Pre-translate all page strings in a single batch call. No JSON files, no render blocking.
 
@@ -127,7 +209,7 @@ export default async function Dashboard({ params }) {
 
 ---
 
-## 5. Method C: JSON Adapter (SEO / next-intl Migration)
+## 7. Method E: JSON Adapter (SEO / next-intl Migration)
 
 Use your existing `messages/en.json` as the source of truth.
 
@@ -148,7 +230,7 @@ export default async function Page({ params }) {
 
 ---
 
-## 6. HTML Processing (Static Pages)
+## 8. HTML Processing (Static Pages)
 
 For **Privacy Policies, Terms of Service, and Blog Posts**, translate raw HTML directly.
 
@@ -171,7 +253,7 @@ export default async function PrivacyPage({ params }) {
 
 ---
 
-## 7. Suspense & Progressive Enhancement
+## 9. Suspense & Progressive Enhancement
 
 Without Suspense, async Server Components block the entire page render until translations complete. This can mean **10-30 seconds of blank screen** on first visit for uncached translations.
 
