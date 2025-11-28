@@ -149,26 +149,62 @@ export const createNextStreamingRouteHandler = (translator: Tstlai) => {
         });
       }
 
+      // Build items with hashes and check cache
+      const items = texts.map((text: string, index: number) => ({
+        text: text.trim(),
+        hash: crypto.createHash('sha256').update(text.trim()).digest('hex'),
+        index,
+      }));
+
       // Stream translations as SSE
       const encoder = new TextEncoder();
+      const resolvedTargetLang = targetLang || translator.getTargetLang();
+
       const stream = new ReadableStream({
         async start(controller) {
           try {
+            // First, check cache and send cached translations immediately
+            const cacheMisses: typeof items = [];
+
+            for (const item of items) {
+              const cached = await translator.getCachedTranslation(item.hash, resolvedTargetLang);
+              if (cached) {
+                // Send cached translation immediately
+                const data = JSON.stringify({ index: item.index, translation: cached });
+                controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+              } else {
+                cacheMisses.push(item);
+              }
+            }
+
+            // If all were cached, we're done
+            if (cacheMisses.length === 0) {
+              controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+              controller.close();
+              return;
+            }
+
+            // Stream translations for cache misses
+            const textsToTranslate = cacheMisses.map((item) => item.text);
             const streamGenerator = provider.translateStream!(
-              texts,
-              targetLang || translator.getTargetLang(),
+              textsToTranslate,
+              resolvedTargetLang,
               translator.getExcludedTerms(),
               translator.getContext(),
             );
 
-            for await (const { index, translation } of streamGenerator) {
-              // Cache the translation
-              const hash = crypto.createHash('sha256').update(texts[index].trim()).digest('hex');
-              await translator.cacheTranslation(hash, translation);
+            let streamIndex = 0;
+            for await (const { translation } of streamGenerator) {
+              const item = cacheMisses[streamIndex];
+              if (item) {
+                // Cache the translation
+                await translator.cacheTranslation(item.hash, translation, resolvedTargetLang);
 
-              // Send SSE event
-              const data = JSON.stringify({ index, translation });
-              controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+                // Send SSE event with original index
+                const data = JSON.stringify({ index: item.index, translation });
+                controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+              }
+              streamIndex++;
             }
 
             // Signal completion

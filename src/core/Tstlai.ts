@@ -92,6 +92,13 @@ export class Tstlai {
     await this.cache.set(cacheKey, translation);
   }
 
+  /** Get a cached translation */
+  async getCachedTranslation(hash: string, targetLangOverride?: string): Promise<string | null> {
+    const targetLang = targetLangOverride || this.config.targetLang;
+    const cacheKey = `${hash}:${targetLang}`;
+    return this.cache.get(cacheKey);
+  }
+
   private initializeProvider(providerConfig: any): AIProvider {
     switch (providerConfig.type) {
       case 'openai':
