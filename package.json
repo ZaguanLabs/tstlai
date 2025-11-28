@@ -1,6 +1,6 @@
 {
   "name": "tstlai",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "Just-In-Time AI localization engine with intelligent caching",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -50,10 +50,23 @@
   ],
   "author": "Stig",
   "license": "MIT",
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@types/jest": "^29.0.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.48.0",
     "@typescript-eslint/parser": "^8.48.0",
     "eslint": "^8.57.1",
