@@ -1,4 +1,4 @@
-import React, { Suspense, cache } from 'react';
+import { Suspense, cache, createElement, Fragment, type ReactNode } from 'react';
 import { Tstlai } from '../core/Tstlai';
 
 // Dynamic require to avoid RSC bundler blocking the import
@@ -25,7 +25,7 @@ interface ServerTranslateProps {
   /** The Tstlai translator instance */
   translator: Tstlai;
   /** React children to translate */
-  children: React.ReactNode;
+  children: ReactNode;
   /** Wrapper element tag (default: 'div', use 'fragment' for no wrapper) */
   as?:
     | 'div'
@@ -56,17 +56,17 @@ async function TranslatedContent({
 }: ServerTranslateProps) {
   // Render children to HTML string using dynamic require
   const renderToString = getRenderer();
-  const childrenHtml = renderToString(<>{children}</>);
+  const childrenHtml = renderToString(createElement(Fragment, null, children));
 
   // Translate the HTML
   const translatedHtml = await translateContent(translator, childrenHtml);
 
   // Return with or without wrapper
   if (as === 'fragment') {
-    return <div dangerouslySetInnerHTML={{ __html: translatedHtml }} />;
+    return createElement('div', { dangerouslySetInnerHTML: { __html: translatedHtml } });
   }
 
-  return React.createElement(as, {
+  return createElement(as, {
     className,
     dangerouslySetInnerHTML: { __html: translatedHtml },
   });
@@ -104,20 +104,21 @@ export async function ServerTranslate({
   // If source language, render children directly (no translation needed)
   if (translator.isSourceLang()) {
     if (as === 'fragment') {
-      return <>{children}</>;
+      return createElement(Fragment, null, children);
     }
-    return React.createElement(as, { className }, children);
+    return createElement(as, { className }, children);
   }
 
   // Fallback shows original content
   const fallback =
-    as === 'fragment' ? <>{children}</> : React.createElement(as, { className }, children);
+    as === 'fragment'
+      ? createElement(Fragment, null, children)
+      : createElement(as, { className }, children);
 
-  return (
-    <Suspense fallback={fallback}>
-      <TranslatedContent translator={translator} as={as} className={className}>
-        {children}
-      </TranslatedContent>
-    </Suspense>
+  return createElement(
+    Suspense,
+    { fallback },
+    // @ts-expect-error - TranslatedContent is async, createElement types don't support it
+    createElement(TranslatedContent, { translator, as, className }, children),
   );
 }
