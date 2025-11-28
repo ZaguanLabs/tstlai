@@ -21,55 +21,59 @@ Unlike traditional i18n libraries that require maintaining massive JSON files, `
 npm install tstlai
 ```
 
-## ⚡ Quick Start
+## ⚡ Quick Start (Next.js)
 
-Here is how to initialize the engine and translate a snippet of HTML.
+The fastest way to get started is with the **Auto-Translate** component. It scans your page and translates everything automatically—no refactoring required.
+
+**1. Create API Route** (`src/app/api/tstlai/translate/route.ts`):
 
 ```typescript
 import { Tstlai } from 'tstlai';
+import { createNextRouteHandler } from 'tstlai/next';
 
-async function main() {
-  // 1. Initialize the Engine
-  const translator = new Tstlai({
-    targetLang: 'es', // Target language code
-    provider: {
-      type: 'openai',
-      // apiKey, model, and baseUrl can be omitted if set via env vars:
-      // OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL
-    },
-    cache: {
-      type: 'memory',
-      ttl: 3600, // Cache duration in seconds
-    },
-  });
+const translator = new Tstlai({
+  targetLang: 'en',
+  provider: { type: 'openai', apiKey: process.env.OPENAI_API_KEY },
+  cache: { type: 'memory' },
+});
 
-  // 2. Your raw HTML content
-  const rawHtml = `
-    <article>
-      <h1>Welcome to the Future</h1>
-      <p>Translate your website instantly.</p>
-      <button data-no-translate>tstlai v1.0</button>
-    </article>
-  `;
+export const POST = createNextRouteHandler(translator);
+```
 
-  // 3. Process the HTML
-  const result = await translator.process(rawHtml);
+**2. Add to Layout** (`src/app/layout.tsx`):
 
-  console.log(result.html);
+```tsx
+import { AutoTranslate } from 'tstlai/integrations';
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="es">
+      <body>
+        {children}
+        <AutoTranslate targetLang="es" />
+      </body>
+    </html>
+  );
 }
-
-main();
 ```
 
-### Output
+**That's it!** Your entire app is now translated to Spanish.
 
-```html
-<article>
-  <h1>Bienvenido al Futuro</h1>
-  <p>Traduce tu sitio web al instante.</p>
-  <button data-no-translate>tstlai v1.0</button>
-</article>
-```
+👉 **[Full Quick Start Guide](docs/getting-started/quick-start.md)** — 5 minutes to a fully translated app.
+
+---
+
+## 🎯 Choose Your Integration Method
+
+| Method             | Best For                                  | Refactoring?        |
+| :----------------- | :---------------------------------------- | :------------------ |
+| **Auto-Translate** | Fastest setup, legacy apps                | None                |
+| **JIT Components** | New projects, dashboards                  | Minimal (wrap text) |
+| **JSON Adapter**   | SEO-critical pages, `next-intl` migration | Use existing JSON   |
+
+👉 **[Next.js Integration Guide](docs/guides/nextjs-integration.md)**
+
+---
 
 ## 🛠️ How It Works
 

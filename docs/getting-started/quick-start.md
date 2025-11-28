@@ -1,58 +1,111 @@
-# Quick Start
+# Quick Start: Zero to Translated in 5 Minutes
 
-This guide shows how to initialize the tstlai engine and translate a raw HTML snippet.
+This guide gets you from `npm install` to a fully translated Next.js app in under 5 minutes using the **Auto-Translate** method. No JSON files, no string extraction, no refactoring.
 
-## Basic Usage
+## Prerequisites
+
+- Next.js 14+ (App Router)
+- An OpenAI API key (or compatible endpoint)
+
+## Step 1: Install
+
+```bash
+npm install tstlai
+```
+
+## Step 2: Set Environment Variables
+
+```bash
+# .env.local
+OPENAI_API_KEY=sk-...
+```
+
+## Step 3: Create the Translator (Server-Side)
+
+Create `src/lib/translator.ts`:
 
 ```typescript
+import 'server-only';
 import { Tstlai } from 'tstlai';
 
-async function main() {
-  // 1. Initialize the Engine
-  const translator = new Tstlai({
-    targetLang: 'es', // Spanish
-    provider: {
-      type: 'openai',
-      // apiKey, model, and baseUrl can be omitted if set via env vars
-      apiKey: process.env.OPENAI_API_KEY, 
-    },
-    cache: {
-      type: 'memory', // Good for development
-      ttl: 3600 // 1 hour
-    }
-  });
+let instance: Tstlai | null = null;
 
-  // 2. Define content
-  const rawHtml = `
-    <article>
-      <h1>Welcome to the Future</h1>
-      <p>Translate your website instantly.</p>
-      <button data-no-translate>tstlai v1.0</button>
-    </article>
-  `;
-
-  // 3. Process translation
-  const result = await translator.process(rawHtml);
-
-  console.log(result.html);
+export function getTranslator() {
+  if (!instance) {
+    instance = new Tstlai({
+      targetLang: 'en', // Default, will be overridden per-request
+      provider: {
+        type: 'openai',
+        apiKey: process.env.OPENAI_API_KEY,
+      },
+      cache: { type: 'memory' }, // Use 'redis' in production
+    });
+  }
+  return instance;
 }
-
-main();
 ```
 
-## Output
+## Step 4: Create the API Endpoint
 
-```html
-<article>
-  <html lang="es" dir="ltr">
-  <h1>Bienvenido al Futuro</h1>
-  <p>Traduce tu sitio web al instante.</p>
-  <button data-no-translate>tstlai v1.0</button>
-</article>
+Create `src/app/api/tstlai/translate/route.ts`:
+
+```typescript
+import { createNextRouteHandler } from 'tstlai/next';
+import { getTranslator } from '@/lib/translator';
+
+export const POST = createNextRouteHandler(getTranslator());
 ```
+
+## Step 5: Add Auto-Translate to Your Layout
+
+Edit your `src/app/layout.tsx` (or `src/app/[locale]/layout.tsx`):
+
+```tsx
+import { AutoTranslate } from 'tstlai/integrations';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Get locale from URL, cookie, or header (your choice)
+  const locale = 'es'; // Example: Spanish
+
+  return (
+    <html lang={locale}>
+      <body>
+        {children}
+        {/* This single line translates your entire app */}
+        <AutoTranslate targetLang={locale} />
+      </body>
+    </html>
+  );
+}
+```
+
+## Step 6: Run Your App
+
+```bash
+npm run dev
+```
+
+Visit your app. The page will load in English, then smoothly update to Spanish as translations stream in.
+
+---
+
+## What Just Happened?
+
+1. Your page rendered normally (in English).
+2. `<AutoTranslate>` scanned the DOM for text nodes.
+3. It sent them to `/api/tstlai/translate`.
+4. The API translated them via OpenAI and cached the results.
+5. The component updated the DOM with translated text.
+
+**On subsequent visits**, translations are served instantly from cache.
+
+---
 
 ## Next Steps
 
-- [Integration with Next.js](../guides/nextjs-integration.md)
-- [Integration with Express](../guides/frameworks.md)
-- [Redis Caching](../guides/caching.md)
+| Goal                          | Guide                                                                                              |
+| :---------------------------- | :------------------------------------------------------------------------------------------------- |
+| **Faster initial load (SEO)** | Use [Server-Side Translation](../guides/nextjs-integration.md#3-method-a-json-adapter-traditional) |
+| **No JSON files at all**      | Use [JIT Components](../guides/nextjs-integration.md#4-method-b-jit-components-no-json)            |
+| **Production caching**        | [Configure Redis](../guides/caching.md)                                                            |
+| **Migrate from next-intl**    | [Migration Guide](../guides/migration-from-next-intl.md)                                           |

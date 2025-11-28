@@ -12,6 +12,17 @@ export class Tstlai {
   private htmlProcessor: HTMLProcessor;
   private excludedTerms: string[] = [];
 
+  // Batching queue for translateText
+  private batchQueue: {
+    text: string;
+    hash: string;
+    targetLang?: string;
+    resolve: (val: string) => void;
+    reject: (err: any) => void;
+  }[] = [];
+  private batchTimeout: NodeJS.Timeout | null = null;
+  private readonly BATCH_DELAY = 50; // ms
+
   private static RTL_LANGUAGES = new Set(['ar', 'he', 'fa', 'ur', 'ps', 'sd', 'ug']);
 
   constructor(config: TranslationConfig) {
@@ -62,12 +73,67 @@ export class Tstlai {
   }
 
   /**
-   * Translate a single text string
+   * Translate a single text string with automatic batching
    */
   async translateText(text: string, targetLangOverride?: string): Promise<string> {
-    const hash = crypto.createHash('sha256').update(text.trim()).digest('hex');
-    const result = await this.translateBatch([{ text: text.trim(), hash }], targetLangOverride);
-    return result.translations.get(hash) || text;
+    return new Promise((resolve, reject) => {
+      const hash = crypto.createHash('sha256').update(text.trim()).digest('hex');
+
+      this.batchQueue.push({
+        text: text.trim(),
+        hash,
+        targetLang: targetLangOverride,
+        resolve,
+        reject,
+      });
+
+      if (!this.batchTimeout) {
+        this.batchTimeout = setTimeout(() => this.flushBatch(), this.BATCH_DELAY);
+      }
+    });
+  }
+
+  /**
+   * Process queued translation requests
+   */
+  private async flushBatch() {
+    const queue = [...this.batchQueue];
+    this.batchQueue = [];
+    this.batchTimeout = null;
+
+    if (queue.length === 0) return;
+
+    // Group by target language
+    const byLang = new Map<string, typeof queue>();
+    const defaultLang = this.config.targetLang;
+
+    queue.forEach((item) => {
+      const lang = item.targetLang || defaultLang;
+      if (!byLang.has(lang)) byLang.set(lang, []);
+      byLang.get(lang)!.push(item);
+    });
+
+    // Process each language group
+    for (const [lang, items] of byLang.entries()) {
+      try {
+        // Deduplicate items for the API call
+        const uniqueItems = Array.from(new Map(items.map((item) => [item.hash, item])).values());
+
+        const { translations } = await this.translateBatch(
+          uniqueItems.map(({ text, hash }) => ({ text, hash })),
+          lang,
+        );
+
+        // Resolve all promises
+        items.forEach((item) => {
+          const translation = translations.get(item.hash) || item.text;
+          item.resolve(translation);
+        });
+      } catch (error) {
+        // Fail all items in this group
+        items.forEach((item) => item.reject(error));
+      }
+    }
   }
 
   /**
@@ -112,14 +178,17 @@ export class Tstlai {
           this.config.translationContext,
         );
 
-        cacheMisses.forEach(async (item, index) => {
-          const translation = translatedTexts[index];
-          if (translation) {
-            translations.set(item.hash, translation);
-            const cacheKey = `${item.hash}:${targetLang}`;
-            await this.cache.set(cacheKey, translation);
-          }
-        });
+        // Properly await all cache writes
+        await Promise.all(
+          cacheMisses.map(async (item, index) => {
+            const translation = translatedTexts[index];
+            if (translation) {
+              translations.set(item.hash, translation);
+              const cacheKey = `${item.hash}:${targetLang}`;
+              await this.cache.set(cacheKey, translation);
+            }
+          }),
+        );
         translatedCount = cacheMisses.length;
       } catch (error) {
         console.error('Translation failed:', error);

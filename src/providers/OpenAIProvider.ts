@@ -12,17 +12,19 @@ export class OpenAIProvider extends BaseAIProvider {
     const resolvedBaseUrl = baseUrl || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
     const resolvedTimeout = timeout || 30000; // Default 30s to allow for cold-start translation of full pages
 
-    // Debug logging
-    console.log(`[OpenAIProvider] Initializing with:`);
-    console.log(
-      `  - API Key: ${resolvedApiKey ? resolvedApiKey.substring(0, 15) + '...' : 'NOT SET'}`,
-    );
-    console.log(`  - Model: ${this.model}`);
-    console.log(`  - Base URL: ${resolvedBaseUrl}`);
-    console.log(`  - Timeout: ${resolvedTimeout}ms`);
+    // Debug logging (only in development)
+    if (process.env.NODE_ENV === 'development' || process.env.TSTLAI_DEBUG) {
+      console.log(`[OpenAIProvider] Initializing with:`);
+      console.log(
+        `  - API Key: ${resolvedApiKey ? resolvedApiKey.substring(0, 15) + '...' : 'NOT SET'}`,
+      );
+      console.log(`  - Model: ${this.model}`);
+      console.log(`  - Base URL: ${resolvedBaseUrl}`);
+      console.log(`  - Timeout: ${resolvedTimeout}ms`);
+    }
 
     if (!resolvedApiKey) {
-      console.warn('OpenAI API Key not provided and not found in environment variables.');
+      console.warn('[OpenAIProvider] API Key not provided and not found in environment variables.');
     }
 
     this.client = new OpenAI({
