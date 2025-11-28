@@ -11,8 +11,8 @@ const translator = new Tstlai({
   // ...
   cache: {
     type: 'memory',
-    ttl: 3600 // 1 hour
-  }
+    ttl: 3600, // 1 hour
+  },
 });
 ```
 
@@ -29,13 +29,13 @@ const translator = new Tstlai({
     type: 'redis',
     // Connection String (supports redis:// and redis+socket://)
     connectionString: process.env.REDIS_URL,
-    
+
     // Time to Live (in seconds)
     ttl: 60 * 60 * 24 * 7, // 7 days recommended
-    
+
     // Namespace (optional)
-    keyPrefix: 'tstlai:' 
-  }
+    keyPrefix: 'tstlai:',
+  },
 });
 ```
 
@@ -46,10 +46,29 @@ tstlai uses a **Composite Key** strategy to support multiple languages safely.
 Format: `{keyPrefix}{contentHash}:{targetLangCode}`
 
 Example for "Hello" (SHA-256 hash `185f...`):
+
 - **Spanish**: `tstlai:185f...:es` -> "Hola"
 - **French**: `tstlai:185f...:fr` -> "Bonjour"
 
 This ensures that translations never collide between languages.
+
+### Multi-Tenancy (Multiple Apps on One Redis)
+
+If you have multiple applications sharing the same Redis instance, use unique `keyPrefix` values to isolate their caches.
+
+```typescript
+// App A
+cache: {
+  type: 'redis',
+  keyPrefix: 'app-a:'
+}
+
+// App B
+cache: {
+  type: 'redis',
+  keyPrefix: 'app-b:'
+}
+```
 
 ### Cache Warming
 
