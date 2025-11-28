@@ -4,15 +4,14 @@ tstlai provides deep integration with Next.js (App Router).
 
 ## 1. Choose Your Method
 
-| Method                 | Setup Time | Best For                            | Trade-off               |
-| :--------------------- | :--------- | :---------------------------------- | :---------------------- |
-| **ServerTranslate** ⭐ | 2 min      | Any page, zero refactoring          | Wraps content in div    |
-| **withTranslation**    | 1 min      | Entire pages, HOC pattern           | Page-level only         |
-| **Auto-Translate**     | 2 min      | Legacy apps, rapid prototyping      | Small client-side flash |
-| **Page Translations**  | 5 min      | Fine-grained control                | List strings upfront    |
-| **JSON Adapter**       | 10 min     | SEO-critical, `next-intl` migration | Requires JSON files     |
+| Method                | Setup Time | Best For                                | Trade-off               |
+| :-------------------- | :--------- | :-------------------------------------- | :---------------------- |
+| **TranslateHTML** ⭐  | 2 min      | Static content, blog posts, about pages | Content as HTML string  |
+| **Auto-Translate**    | 2 min      | Legacy apps, rapid prototyping          | Small client-side flash |
+| **Page Translations** | 5 min      | Dynamic content, fine-grained control   | List strings upfront    |
+| **JSON Adapter**      | 10 min     | SEO-critical, `next-intl` migration     | Requires JSON files     |
 
-**Recommendation:** Start with **ServerTranslate** — zero refactoring, just wrap your content.
+**Recommendation:** Use **TranslateHTML** for static content, **Auto-Translate** for quick prototyping, or **Page Translations** for dynamic pages.
 
 ---
 
@@ -50,89 +49,67 @@ export function getTranslator(locale: string = 'en') {
 
 ---
 
-## 3. Method A: ServerTranslate (Recommended)
+## 3. Method A: TranslateHTML (Recommended for Static Content)
 
-**Zero refactoring.** Wrap any content and it's translated automatically. Built-in Suspense shows original content while translations load.
+**Minimal refactoring.** Move your content to an HTML string and it's translated automatically. Built-in Suspense shows original content while translations load.
 
 ```tsx
 // app/[locale]/about/page.tsx
-import { ServerTranslate } from 'tstlai/next';
+import { TranslateHTML } from 'tstlai/next';
 import { getTranslator } from '@/lib/translator';
+
+const ABOUT_CONTENT = `
+  <h1>About Us</h1>
+  <p>We build amazing products for developers.</p>
+  <p>Our team is passionate about quality and innovation.</p>
+  
+  <h2>Our Mission</h2>
+  <p>To make software development more accessible to everyone.</p>
+`;
 
 export default async function AboutPage({ params }) {
   const { locale } = await params;
 
   return (
-    <ServerTranslate translator={getTranslator(locale)}>
-      <main>
-        <h1>About Us</h1>
-        <p>We build amazing products for developers.</p>
-        <p>Our team is passionate about quality and innovation.</p>
-
-        <h2>Our Mission</h2>
-        <p>To make software development more accessible to everyone.</p>
-      </main>
-    </ServerTranslate>
+    <main>
+      <TranslateHTML translator={getTranslator(locale)} html={ABOUT_CONTENT} />
+    </main>
   );
 }
 ```
 
-That's it. No string extraction, no `t()` calls, no JSON files. Your existing JSX just works.
-
 ### How It Works
 
-1. Your page renders normally with English content
-2. `ServerTranslate` captures the HTML output
+1. HTML string is passed to `TranslateHTML`
+2. Suspense shows original content immediately
 3. All text nodes are extracted and translated in a single batch
-4. Translated HTML is returned
-5. Suspense shows English content instantly while translations load
+4. Translated HTML replaces the original
 
 ### Excluding Content from Translation
 
 Use `data-no-translate` on any element:
 
 ```tsx
-<ServerTranslate translator={translator}>
+const CONTENT = `
   <h1>Welcome to MyBrand</h1>
   <p data-no-translate>MyBrand™ is a registered trademark.</p>
   <code data-no-translate>npm install mybrand</code>
-</ServerTranslate>
+`;
 ```
 
----
+### Wrapper Element
 
-## 4. Method B: withTranslation HOC
-
-For entire pages, use the higher-order component:
+Customize the wrapper element with `as` and `className`:
 
 ```tsx
-// app/[locale]/about/page.tsx
-import { withTranslation } from 'tstlai/next';
-import { getTranslator } from '@/lib/translator';
-
-function AboutPage({ locale }) {
-  return (
-    <main>
-      <h1>About Us</h1>
-      <p>We build amazing products.</p>
-    </main>
-  );
-}
-
-export default withTranslation(AboutPage, getTranslator);
+<TranslateHTML translator={translator} html={content} as="article" className="prose" />
 ```
-
-The HOC automatically:
-
-- Extracts locale from params
-- Skips translation for source language (English)
-- Wraps output in `ServerTranslate`
 
 ---
 
-## 5. Method C: Auto-Translate (Client-Side)
+## 4. Method B: Auto-Translate (Client-Side)
 
-> **Note:** Prefer `ServerTranslate` for new projects. Auto-Translate is useful for legacy apps where you can't modify page components.
+> **Note:** Prefer `TranslateHTML` for new projects. Auto-Translate is useful for legacy apps where you can't modify page components.
 
 Drop one component into your layout and your entire app is translated.
 
@@ -170,7 +147,7 @@ export default async function Layout({ children, params }) {
 
 ---
 
-## 6. Method D: Page Translations (Fine-Grained Control)
+## 5. Method C: Page Translations (Fine-Grained Control)
 
 Pre-translate all page strings in a single batch call. No JSON files, no render blocking.
 
@@ -209,7 +186,7 @@ export default async function Dashboard({ params }) {
 
 ---
 
-## 7. Method E: JSON Adapter (SEO / next-intl Migration)
+## 6. Method D: JSON Adapter (SEO / next-intl Migration)
 
 Use your existing `messages/en.json` as the source of truth.
 
@@ -230,7 +207,7 @@ export default async function Page({ params }) {
 
 ---
 
-## 8. HTML Processing (Static Pages)
+## 7. HTML Processing (Static Pages)
 
 For **Privacy Policies, Terms of Service, and Blog Posts**, translate raw HTML directly.
 
@@ -253,7 +230,7 @@ export default async function PrivacyPage({ params }) {
 
 ---
 
-## 9. Suspense & Progressive Enhancement
+## 8. Suspense & Progressive Enhancement
 
 Without Suspense, async Server Components block the entire page render until translations complete. This can mean **10-30 seconds of blank screen** on first visit for uncached translations.
 

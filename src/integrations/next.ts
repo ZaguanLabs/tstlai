@@ -2,7 +2,8 @@ import * as crypto from 'crypto';
 import { Tstlai } from '../core/Tstlai';
 
 // Re-export server translation components
-export { ServerTranslate, translateHTML, withTranslation } from './server-translate';
+export { ServerTranslate } from './server-translate';
+export { TranslateHTML, translateHTML } from './server-translate-html-only';
 
 /**
  * Pre-translate all page strings in a single batch call.
