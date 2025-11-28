@@ -1,0 +1,47 @@
+Locale Code,Language,Country / Region,Proficiency Tier,Notes on Translation Performance                                                                  
+en_US,English,United States,Tier 1 (High),"Excellent. Translations are nuanced, accurate, and preserve context and tone."                                
+en_GB,English,United Kingdom,Tier 1 (High),Excellent. Fully aware of British spelling and common idioms.                                                 
+de_DE,German,Germany,Tier 1 (High),Excellent. Highly accurate and natural-sounding translations.                                                         
+es_ES,Spanish,Spain,Tier 1 (High),Excellent. Aware of Castilian vocabulary and norms.                                                                    
+es_MX,Spanish,Mexico,Tier 1 (High),Excellent. The primary standard for Latin American Spanish.                                                           
+fr_FR,French,France,Tier 1 (High),Excellent. Consistently high-quality translation.                                                                      
+it_IT,Italian,Italy,Tier 1 (High),Excellent. Reliable for all types of translation tasks.                                                                
+ja_JP,Japanese,Japan,Tier 1 (High),"Excellent. Strong grasp of grammar, script, and cultural context."                                                   
+pt_BR,Portuguese,Brazil,Tier 1 (High),Excellent. The most common and well-supported variant of Portuguese.                                               
+pt_PT,Portuguese,Portugal,Tier 1 (High),Excellent. Fully proficient in European Portuguese.                                                              
+zh_CN,Chinese,China (Simplified),Tier 1 (High),Excellent. Expert-level translation for Simplified Chinese.                                               
+zh_TW,Chinese,Taiwan (Traditional),Tier 1 (High),Excellent. Expert-level translation for Traditional Chinese.                                            
+ar_SA,Arabic,Saudi Arabia,Tier 2 (Good),Good and Reliable. Works well for Modern Standard Arabic (MSA).                                                  
+bn_BD,Bengali,Bangladesh,Tier 2 (Good),Good and Reliable. Suitable for most professional and personal use.                                               
+cs_CZ,Czech,Czech Republic,Tier 2 (Good),Good and Reliable. Consistent performance for most content.                                                     
+da_DK,Danish,Denmark,Tier 2 (Good),Good and Reliable. Solid choice for general-purpose translation.                                                      
+el_GR,Greek,Greece,Tier 2 (Good),Good and Reliable. Strong performance in modern Greek.                                                                  
+fi_FI,Finnish,Finland,Tier 2 (Good),Good and Reliable. Handles complex grammar well for most cases.                                                      
+he_IL,Hebrew,Israel,Tier 2 (Good),Good and Reliable. Consistent and accurate translations.                                                               
+hi_IN,Hindi,India,Tier 2 (Good),Good and Reliable. Understands Devanagari script and common usage.                                                       
+hu_HU,Hungarian,Hungary,Tier 2 (Good),Good and Reliable. Suitable for a wide range of translation needs.                                                 
+id_ID,Indonesian,Indonesia,Tier 2 (Good),Good and Reliable. Very functional and widely applicable.                                                       
+ko_KR,Korean,South Korea,Tier 2 (Good),Good and Reliable. Strong understanding of Hangul and modern usage.                                               
+nl_NL,Dutch,Netherlands,Tier 2 (Good),Good and Reliable. High-quality translations for general content.                                                  
+nb_NO,Norwegian,Norway,Tier 2 (Good),Good and Reliable. Strong support for the Bokmål standard.                                                          
+pl_PL,Polish,Poland,Tier 2 (Good),Good and Reliable. A solid choice for professional use cases.                                                          
+ro_RO,Romanian,Romania,Tier 2 (Good),Good and Reliable. Consistent performance.                                                                          
+ru_RU,Russian,Russia,Tier 2 (Good),Good and Reliable. High accuracy for a wide variety of texts.                                                         
+sv_SE,Swedish,Sweden,Tier 2 (Good),Good and Reliable. Solid performance for general-purpose translation.                                                 
+th_TH,Thai,Thailand,Tier 2 (Good),Good and Reliable. Handles Thai script and nuances effectively.                                                        
+tr_TR,Turkish,Turkey,Tier 2 (Good),Good and Reliable. Strong performance for most translation tasks.                                                     
+uk_UA,Ukrainian,Ukraine,Tier 2 (Good),Good and Reliable. Quality is high and consistently improving.                                                     
+vi_VN,Vietnamese,Vietnam,Tier 2 (Good),Good and Reliable. Suitable for a wide variety of contexts.                                                       
+bg_BG,Bulgarian,Bulgaria,Tier 3 (Functional),Functional. Best for understanding the gist or for basic communication.                                     
+ca_ES,Catalan,Spain,Tier 3 (Functional),"Functional. Works well, especially when translating to/from Spanish."                                           
+fa_IR,Persian,Iran,Tier 3 (Functional),Functional. Reliable for standard Farsi text; review is recommended.                                              
+hr_HR,Croatian,Croatia,Tier 3 (Functional),Functional. Good for general understanding; may lack natural flow.                                            
+lt_LT,Lithuanian,Lithuania,Tier 3 (Functional),Functional. Can produce literal translations; best for simple texts.                                      
+lv_LV,Latvian,Latvia,Tier 3 (Functional),Functional. Similar to Lithuanian; best to review for important use.                                            
+ms_MY,Malay,Malaysia,Tier 3 (Functional),Functional. Suitable for standard requests and getting the main idea.                                           
+sk_SK,Slovak,Slovakia,Tier 3 (Functional),Functional. Good for straightforward text; review complex content.                                             
+sl_SI,Slovenian,Slovenia,Tier 3 (Functional),Functional. Best for simple sentences and direct translations.                                              
+sr_RS,Serbian,Serbia,Tier 3 (Functional),Functional. Understands Cyrillic/Latin scripts; best for simple text.                                           
+sw_KE,Swahili,Kenya,Tier 3 (Functional),Functional. Primarily useful for basic translation and simple questions.                                         
+tl_PH,Tagalog,Philippines,Tier 3 (Functional),Functional. Also fil_PH. Good for gist; may sound machine-like.                                            
+ur_PK,Urdu,Pakistan,Tier 3 (Functional),Functional. Capable of translating standard text; review recommended.
