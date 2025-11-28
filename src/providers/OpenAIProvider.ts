@@ -307,6 +307,11 @@ ${excludedTerms.map((term) => `- ${term}`).join('\n')}`;
     }
   }
 
+  /** Check if this provider supports streaming */
+  supportsStreaming(): boolean {
+    return true;
+  }
+
   getModelInfo(): { name: string; capabilities: string[] } {
     return {
       name: this.model,

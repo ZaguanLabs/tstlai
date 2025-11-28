@@ -22,6 +22,12 @@ export interface CacheConfig {
   keyPrefix?: string; // Optional namespace, default 'tstlai:'
 }
 
+export interface TranslateOptions {
+  excludedTerms?: string[];
+  context?: string;
+  stream?: boolean;
+}
+
 export interface AIProvider {
   translate(
     texts: string[],
@@ -40,6 +46,9 @@ export interface AIProvider {
     excludedTerms?: string[],
     context?: string,
   ): AsyncGenerator<{ index: number; translation: string }>;
+
+  /** Check if this provider supports streaming */
+  supportsStreaming?(): boolean;
 
   getModelInfo(): { name: string; capabilities: string[] };
 }

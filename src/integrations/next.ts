@@ -133,7 +133,11 @@ export const createNextStreamingRouteHandler = (translator: Tstlai) => {
 
       // Check if provider supports streaming
       const provider = translator.getProvider();
-      if (!provider.translateStream) {
+      const supportsStreaming =
+        (provider.supportsStreaming && provider.supportsStreaming()) ||
+        typeof provider.translateStream === 'function';
+
+      if (!supportsStreaming) {
         // Fallback to batch mode
         const items = texts.map((text: string) => {
           const hash = crypto.createHash('sha256').update(text.trim()).digest('hex');
