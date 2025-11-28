@@ -62,7 +62,57 @@ export const TstlaiProvider = ({ children, locale, initialMessages }: TstlaiProv
 };
 
 /**
+ * Cache for promise status tracking (React Suspense pattern)
+ */
+const promiseCache = new WeakMap<
+  Promise<Record<string, any>>,
+  { status: 'pending' | 'fulfilled' | 'rejected'; result?: Record<string, any>; error?: Error }
+>();
+
+/**
+ * Use a promise with React Suspense (throws if pending)
+ */
+function usePromise<T>(promise: Promise<T> | T): T {
+  // If not a promise, return directly
+  if (!(promise instanceof Promise)) {
+    return promise;
+  }
+
+  // Check cache
+  let cached = promiseCache.get(promise as Promise<Record<string, any>>);
+
+  if (!cached) {
+    // First time seeing this promise - start tracking
+    cached = { status: 'pending' };
+    promiseCache.set(promise as Promise<Record<string, any>>, cached);
+
+    promise.then(
+      (result) => {
+        cached!.status = 'fulfilled';
+        cached!.result = result as Record<string, any>;
+      },
+      (error) => {
+        cached!.status = 'rejected';
+        cached!.error = error instanceof Error ? error : new Error(String(error));
+      },
+    );
+  }
+
+  // Handle based on status
+  if (cached.status === 'pending') {
+    throw promise; // Triggers Suspense
+  }
+
+  if (cached.status === 'rejected') {
+    throw cached.error;
+  }
+
+  return cached.result as T;
+}
+
+/**
  * Internal component that resolves the translated messages promise.
+ * Uses React Suspense pattern - throws promise to trigger Suspense boundary.
  */
 function TranslatedContent({
   children,
@@ -75,48 +125,22 @@ function TranslatedContent({
   translatedMessages: Promise<Record<string, any>> | Record<string, any>;
   setStatus: (status: Partial<TranslationStatus>) => void;
 }) {
-  const [messages, setMessages] = useState<Record<string, any> | null>(null);
-  const [status, setLocalStatus] = useState<TranslationStatus>({
-    isTranslating: true,
-    progress: 0,
-    error: null,
-  });
+  // This will throw if promise is pending (triggering Suspense)
+  const messages = usePromise(translatedMessages);
 
+  // Update status when we have messages
   useEffect(() => {
-    let cancelled = false;
+    setStatus({ isTranslating: false, progress: 100 });
+  }, [setStatus]);
 
-    const resolve = async () => {
-      try {
-        setStatus({ isTranslating: true, progress: 0 });
-        const resolved =
-          translatedMessages instanceof Promise ? await translatedMessages : translatedMessages;
-
-        if (!cancelled) {
-          setMessages(resolved);
-          setLocalStatus({ isTranslating: false, progress: 100, error: null });
-          setStatus({ isTranslating: false, progress: 100 });
-        }
-      } catch (err) {
-        if (!cancelled) {
-          const error = err instanceof Error ? err : new Error(String(err));
-          setLocalStatus({ isTranslating: false, progress: 0, error });
-          setStatus({ isTranslating: false, progress: 0, error });
-        }
-      }
-    };
-
-    resolve();
-    return () => {
-      cancelled = true;
-    };
-  }, [translatedMessages, setStatus]);
-
-  if (!messages) {
-    return null; // Suspense fallback will show
-  }
+  const status: TranslationStatus = {
+    isTranslating: false,
+    progress: 100,
+    error: null,
+  };
 
   return (
-    <TstlaiContext.Provider value={{ locale, messages, status: status, setStatus }}>
+    <TstlaiContext.Provider value={{ locale, messages, status, setStatus }}>
       {children}
     </TstlaiContext.Provider>
   );
