@@ -48,8 +48,16 @@
     "nextjs",
     "typescript"
   ],
-  "author": "Stig",
+  "author": "Zaguán AI",
   "license": "MIT",
+  "homepage": "https://labs.zaguanai.com/en/experiments/tstlai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZaguanLabs/tstlai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ZaguanLabs/tstlai/issues"
+  },
   "peerDependencies": {
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0"
