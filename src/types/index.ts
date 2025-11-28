@@ -1,5 +1,6 @@
 export interface TranslationConfig {
   targetLang: string;
+  sourceLang?: string; // Source language (default: 'en'). When targetLang === sourceLang, translation is bypassed.
   provider: AIProviderConfig;
   cache?: CacheConfig;
   excludedTerms?: string[]; // Words/Phrases to never translate

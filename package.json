@@ -1,15 +1,30 @@
 {
   "name": "tstlai",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Just-In-Time AI localization engine with intelligent caching",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./client": "./dist/integrations/next-client.js",
-    "./next": "./dist/integrations/next.js",
-    "./integrations": "./dist/integrations/index.js",
-    "./integrations/next-intl": "./dist/integrations/next-intl.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/integrations/next-client.d.ts",
+      "default": "./dist/integrations/next-client.js"
+    },
+    "./next": {
+      "types": "./dist/integrations/next.d.ts",
+      "default": "./dist/integrations/next.js"
+    },
+    "./integrations": {
+      "types": "./dist/integrations/index.d.ts",
+      "default": "./dist/integrations/index.js"
+    },
+    "./integrations/next-intl": {
+      "types": "./dist/integrations/next-intl.d.ts",
+      "default": "./dist/integrations/next-intl.js"
+    }
   },
   "files": [
     "dist/**/*"

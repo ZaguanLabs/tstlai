@@ -2,6 +2,8 @@
 
 tstlai provides deep integration with Next.js (App Router).
 
+> **Important:** Async Server Components block the entire page render until they complete. For the best user experience, always use Suspense boundaries to show content immediately while translations load. See [Suspense & Progressive Enhancement](#7-suspense--progressive-enhancement) for details.
+
 ## 1. Choose Your Method
 
 | Method                | Setup Time | Best For                                  | Trade-off               |
@@ -166,6 +168,148 @@ export default async function PrivacyPage({ params }) {
   return <div dangerouslySetInnerHTML={{ __html: html }} />;
 }
 ```
+
+---
+
+## 7. Suspense & Progressive Enhancement
+
+Without Suspense, async Server Components block the entire page render until translations complete. This can mean **10-30 seconds of blank screen** on first visit for uncached translations.
+
+### The Problem
+
+```tsx
+// ❌ BAD: Blocks entire page render
+export default async function Layout({ children, params }) {
+  const { locale } = await params;
+  const messages = await translateMessages(enMessages, locale); // Blocks here!
+
+  return (
+    <TstlaiProvider locale={locale} initialMessages={messages}>
+      {children}
+    </TstlaiProvider>
+  );
+}
+```
+
+### The Solution: TstlaiSuspenseProvider
+
+Use `TstlaiSuspenseProvider` to show English content immediately while translations load in the background:
+
+```tsx
+// ✅ GOOD: Shows English immediately, swaps in translations when ready
+import { TstlaiSuspenseProvider } from 'tstlai/client';
+import { getTranslator } from '@/lib/translator';
+import enMessages from '@/messages/en.json';
+
+// Helper to translate all messages
+async function translateMessages(
+  messages: Record<string, any>,
+  locale: string,
+): Promise<Record<string, any>> {
+  if (locale === 'en') return messages;
+
+  const translator = getTranslator(locale);
+  // ... recursive translation logic
+  return translatedMessages;
+}
+
+export default async function Layout({ children, params }) {
+  const { locale } = await params;
+
+  // Start translation (returns a Promise)
+  const translatedMessages = translateMessages(enMessages, locale);
+
+  return (
+    <TstlaiSuspenseProvider
+      locale={locale}
+      fallbackLocale="en"
+      fallbackMessages={enMessages}
+      translatedMessages={translatedMessages}
+    >
+      {children}
+    </TstlaiSuspenseProvider>
+  );
+}
+```
+
+### User Experience Timeline
+
+```
+T+0ms:    Page loads with English content (instant)
+T+100ms:  User can read and interact
+T+15-30s: Translations swap in seamlessly (first visit, uncached)
+T+50ms:   Cached translations appear (subsequent visits)
+```
+
+### Translation Status Indicator
+
+Show users that translations are loading with `useTranslationStatus`:
+
+```tsx
+'use client';
+
+import { useTranslationStatus } from 'tstlai/client';
+
+export function TranslationIndicator() {
+  const { isTranslating, progress } = useTranslationStatus();
+
+  if (!isTranslating) return null;
+
+  return (
+    <div className="fixed bottom-4 right-4 bg-blue-500 text-white px-3 py-1 rounded-full text-sm">
+      Translating...
+    </div>
+  );
+}
+```
+
+### Page-Level Suspense
+
+For page content, wrap async translation components in their own Suspense boundaries:
+
+```tsx
+import { Suspense } from 'react';
+import { createPageTranslations } from 'tstlai/next';
+import { getTranslator } from '@/lib/translator';
+
+const PAGE_STRINGS = ['Welcome to our site', 'Get started today'] as const;
+
+async function TranslatedContent({ locale }: { locale: string }) {
+  const t = await createPageTranslations(
+    getTranslator(locale),
+    PAGE_STRINGS as unknown as string[],
+  );
+
+  return (
+    <main>
+      <h1>{t('Welcome to our site')}</h1>
+      <p>{t('Get started today')}</p>
+    </main>
+  );
+}
+
+// Fallback shows English content (not a loading spinner!)
+function FallbackContent() {
+  return (
+    <main>
+      <h1>Welcome to our site</h1>
+      <p>Get started today</p>
+    </main>
+  );
+}
+
+export default async function Page({ params }) {
+  const { locale } = await params;
+
+  return (
+    <Suspense fallback={<FallbackContent />}>
+      <TranslatedContent locale={locale} />
+    </Suspense>
+  );
+}
+```
+
+> **Key Insight:** A blank loading state is worse than showing source content. Users can read and interact with English content while translations load.
 
 ---
 

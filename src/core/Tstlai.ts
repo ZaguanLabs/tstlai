@@ -11,6 +11,7 @@ export class Tstlai {
   private cache: TranslationCache;
   private htmlProcessor: HTMLProcessor;
   private excludedTerms: string[] = [];
+  private sourceLang: string;
 
   // Batching queue for translateText
   private batchQueue: {
@@ -43,6 +44,21 @@ export class Tstlai {
     this.excludedTerms = [...new Set([...configTerms, ...envTerms])]
       .map((t) => t.trim())
       .filter(Boolean);
+
+    // Initialize Source Language (default: 'en')
+    this.sourceLang = config.sourceLang || 'en';
+  }
+
+  /**
+   * Check if the target language matches the source language.
+   * When true, translation can be bypassed.
+   */
+  isSourceLang(targetLangOverride?: string): boolean {
+    const targetLang = targetLangOverride || this.config.targetLang;
+    // Normalize: compare base language codes (e.g., 'en-US' -> 'en')
+    const normalizedTarget = targetLang.split(/[-_]/)[0].toLowerCase();
+    const normalizedSource = this.sourceLang.split(/[-_]/)[0].toLowerCase();
+    return normalizedTarget === normalizedSource;
   }
 
   private initializeProvider(providerConfig: any): AIProvider {

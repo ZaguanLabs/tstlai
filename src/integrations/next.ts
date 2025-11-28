@@ -33,6 +33,11 @@ export const createPageTranslations = async (
   translator: Tstlai,
   strings: string[],
 ): Promise<(key: string) => string> => {
+  // Bypass translation when target language matches source language
+  if (translator.isSourceLang()) {
+    return (key: string): string => key.trim();
+  }
+
   // Generate hashes and batch translate
   const items = strings.map((text) => ({
     text: text.trim(),
