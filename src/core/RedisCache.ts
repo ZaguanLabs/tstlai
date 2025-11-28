@@ -1,4 +1,4 @@
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { TranslationCache } from '../types';
 
 export class RedisCache implements TranslationCache {

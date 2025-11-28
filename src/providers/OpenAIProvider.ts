@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import { OpenAI } from 'openai';
 import { BaseAIProvider } from './BaseAIProvider';
 
 export class OpenAIProvider extends BaseAIProvider {
