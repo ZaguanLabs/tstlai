@@ -122,3 +122,58 @@ Plain strings (like `"title": "Welcome"`) work as before.
 2. **Include UI context** - "button", "menu item", "page title", "error message"
 3. **Mention domain** - "sports", "finance", "medical" when relevant
 4. **Only when needed** - Don't add context to unambiguous phrases like "Welcome to our app"
+
+## RTL (Right-to-Left) Support
+
+tstlai automatically detects RTL languages and provides helpers for setting text direction.
+
+### Supported RTL Languages
+
+- Arabic (`ar`)
+- Hebrew (`he`)
+- Persian/Farsi (`fa`)
+- Urdu (`ur`)
+- Pashto (`ps`)
+- Sindhi (`sd`)
+- Uyghur (`ug`)
+
+### Instance Methods
+
+#### `isRtl(targetLangOverride?: string): boolean`
+
+Check if the target language uses right-to-left text direction.
+
+```typescript
+tstlai.isRtl(); // Check configured targetLang
+tstlai.isRtl('ar_SA'); // Check specific language
+```
+
+#### `getDir(targetLangOverride?: string): 'ltr' | 'rtl'`
+
+Get the text direction for the target language.
+
+```typescript
+document.documentElement.dir = tstlai.getDir();
+```
+
+### ProcessedPage Response
+
+When using `process()`, the response includes `dir` and `lang`:
+
+```typescript
+interface ProcessedPage {
+  html: string;
+  translatedCount: number;
+  cachedCount: number;
+  dir: 'ltr' | 'rtl'; // Text direction
+  lang: string; // Target language code
+}
+```
+
+Example:
+
+```typescript
+const result = await tstlai.process(html);
+console.log(result.dir); // 'rtl' for Arabic
+console.log(result.lang); // 'ar_SA'
+```

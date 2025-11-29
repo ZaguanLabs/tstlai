@@ -328,6 +328,43 @@ await tstlai.translateText('Save', 'es_ES', 'button: save file to disk');
 await tstlai.translateText('Post', 'es_ES', 'verb: publish content');
 ```
 
+## 🔄 RTL (Right-to-Left) Support
+
+tstlai automatically detects RTL languages and provides helpers to set the correct text direction.
+
+### Supported RTL Languages
+
+Arabic (`ar`), Hebrew (`he`), Persian/Farsi (`fa`), Urdu (`ur`), Pashto (`ps`), Sindhi (`sd`), Uyghur (`ug`)
+
+### Using with `process()` (Full HTML)
+
+When processing full HTML, the `dir` and `lang` attributes are set automatically:
+
+```typescript
+const result = await tstlai.process(html);
+// result.dir = 'rtl' | 'ltr'
+// result.lang = 'ar_SA'
+// result.html already has <html lang="ar_SA" dir="rtl">
+```
+
+### Using with `translateText()` (Manual Control)
+
+For client-side or partial translations, use the helper methods:
+
+```typescript
+// Check if current target language is RTL
+if (tstlai.isRtl()) {
+  document.documentElement.dir = 'rtl';
+}
+
+// Or get the direction directly
+document.documentElement.dir = tstlai.getDir(); // 'ltr' | 'rtl'
+
+// Check a specific language
+tstlai.isRtl('he_IL'); // true
+tstlai.getDir('ar_SA'); // 'rtl'
+```
+
 ## License
 
 MIT

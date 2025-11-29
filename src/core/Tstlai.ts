@@ -81,6 +81,29 @@ export class Tstlai {
     return this.config.translationContext;
   }
 
+  /**
+   * Check if the target language uses right-to-left text direction.
+   * Useful for setting dir="rtl" on HTML elements.
+   *
+   * @param targetLangOverride - Optional target language override
+   * @returns true if the language is RTL (Arabic, Hebrew, Persian, Urdu, etc.)
+   */
+  isRtl(targetLangOverride?: string): boolean {
+    const targetLang = targetLangOverride || this.config.targetLang;
+    const langCode = targetLang.split(/[-_]/)[0].toLowerCase();
+    return Tstlai.RTL_LANGUAGES.has(langCode);
+  }
+
+  /**
+   * Get the text direction for the target language.
+   *
+   * @param targetLangOverride - Optional target language override
+   * @returns 'rtl' or 'ltr'
+   */
+  getDir(targetLangOverride?: string): 'ltr' | 'rtl' {
+    return this.isRtl(targetLangOverride) ? 'rtl' : 'ltr';
+  }
+
   /** Cache a translation directly */
   async cacheTranslation(
     hash: string,
@@ -284,7 +307,13 @@ export class Tstlai {
     const textNodes: TextNodeRef[] = this.htmlProcessor.extractTextNodes(root);
 
     if (textNodes.length === 0) {
-      return { html, translatedCount: 0, cachedCount: 0 };
+      return {
+        html,
+        translatedCount: 0,
+        cachedCount: 0,
+        dir: this.getDir(),
+        lang: targetLang,
+      };
     }
 
     // 2. Translate Batch
@@ -303,6 +332,8 @@ export class Tstlai {
       html: root.toString(),
       translatedCount,
       cachedCount,
+      dir: isRtl ? 'rtl' : 'ltr',
+      lang: targetLang,
     };
   }
 }

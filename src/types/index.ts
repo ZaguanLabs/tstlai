@@ -62,4 +62,8 @@ export interface ProcessedPage {
   html: string;
   translatedCount: number;
   cachedCount: number;
+  /** Text direction for the target language */
+  dir: 'ltr' | 'rtl';
+  /** Target language code */
+  lang: string;
 }
