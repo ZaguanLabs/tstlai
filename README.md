@@ -14,6 +14,8 @@ Unlike traditional i18n libraries that require maintaining massive JSON files, `
 - **HTML-Safe**: Intelligent parsing ensures your HTML structure, classes, and attributes remain untouched. Only text content is translated.
 - **Context-Aware**: AI understands your content's context (e.g., "Marketing", "Legal") for native-quality phrasing.
 - **RTL Support**: Automatically detects Right-to-Left languages (like Arabic, Hebrew) and sets the `dir="rtl"` attribute.
+- **CLI Generation**: Generate all translation files at build time from a single source JSON.
+- **Contextual Disambiguation**: Provide hints for ambiguous words (e.g., "Save" as button vs. "save money").
 
 ## 📦 Installation
 
@@ -70,8 +72,10 @@ export default function RootLayout({ children }) {
 | **Auto-Translate**    | Fastest setup, legacy apps                | None                 |
 | **Page Translations** | New projects, dashboards                  | List strings upfront |
 | **JSON Adapter**      | SEO-critical pages, `next-intl` migration | Use existing JSON    |
+| **CLI Generate**      | Static sites, mobile apps, CI/CD          | Source JSON only     |
 
 👉 **[Next.js Integration Guide](docs/guides/nextjs-integration.md)**
+👉 **[CLI Generate Guide](docs/guides/cli-generate.md)**
 
 ---
 
@@ -275,6 +279,53 @@ To prevent specific elements from being translated, add the `data-no-translate` 
 
 ```html
 <span data-no-translate>BrandName™</span>
+```
+
+## 🖥️ CLI: Generate Translation Files
+
+Generate all translation files at build time from a single source JSON:
+
+```bash
+# Generate Spanish and French translations
+npx tstlai generate -i locales/en.json -o locales/ -l es,fr
+
+# With context for better translations
+npx tstlai generate -i en.json -l de,ja -c "E-commerce website"
+
+# Preview without API calls
+npx tstlai generate -i en.json -l es --dry-run
+```
+
+### Contextual Strings (Disambiguation)
+
+Single words can translate differently based on context. Use `$t` and `$ctx` to provide hints:
+
+```json
+{
+  "save": { "$t": "Save", "$ctx": "button: save file to disk" },
+  "post": { "$t": "Post", "$ctx": "verb: publish content" },
+  "match": { "$t": "Match", "$ctx": "noun: sports game" }
+}
+```
+
+The context helps the AI choose the right translation:
+
+- **Save** → "Guardar" (not "Ahorrar" or "Salvar")
+- **Post** → "Publicar" (not "Correo")
+- **Match** → "Partido" (not "Cerilla")
+
+Context hints are stripped from output files—they're only used during translation.
+
+👉 **[Full CLI Guide](docs/guides/cli-generate.md)**
+
+## 💡 Contextual Translation (API)
+
+You can also provide context hints when using the API directly:
+
+```typescript
+// Disambiguate single words
+await tstlai.translateText('Save', 'es_ES', 'button: save file to disk');
+await tstlai.translateText('Post', 'es_ES', 'verb: publish content');
 ```
 
 ## License

@@ -108,3 +108,4 @@ Visit your app. The page will load in English, then smoothly update to Spanish a
 | **Faster initial load (SEO)** | Use [Page Translations](../guides/nextjs-integration.md#4-method-b-page-translations-no-json-files)  |
 | **Production caching**        | [Configure Redis](../guides/caching.md)                                                              |
 | **Migrate from next-intl**    | Use [JSON Adapter](../guides/nextjs-integration.md#5-method-c-json-adapter-seo--next-intl-migration) |
+| **Static generation**         | Use [CLI Generate](../guides/cli-generate.md) to create all translations at build time               |

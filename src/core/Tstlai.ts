@@ -127,14 +127,33 @@ export class Tstlai {
   }
 
   /**
-   * Translate a single text string with automatic batching
+   * Translate a single text string with automatic batching.
+   *
+   * @param text - Text to translate
+   * @param targetLangOverride - Optional target language override
+   * @param context - Optional context hint for disambiguation (e.g., "button: save file")
+   *
+   * @example
+   * // Without context
+   * await tstlai.translateText("Save");
+   *
+   * // With context for disambiguation
+   * await tstlai.translateText("Save", undefined, "button: save file to disk");
+   * await tstlai.translateText("Post", "es_ES", "verb: publish content");
    */
-  async translateText(text: string, targetLangOverride?: string): Promise<string> {
+  async translateText(
+    text: string,
+    targetLangOverride?: string,
+    context?: string,
+  ): Promise<string> {
     return new Promise((resolve, reject) => {
+      // Include context in the text for the AI, will be stripped from output
+      const textWithContext = context ? `${text.trim()} {{__ctx__:${context}}}` : text.trim();
+      // Hash is based on original text only (context doesn't affect caching)
       const hash = crypto.createHash('sha256').update(text.trim()).digest('hex');
 
       this.batchQueue.push({
-        text: text.trim(),
+        text: textWithContext,
         hash,
         targetLang: targetLangOverride,
         resolve,
@@ -178,9 +197,11 @@ export class Tstlai {
           lang,
         );
 
-        // Resolve all promises
+        // Resolve all promises (strip any leaked context markers)
         items.forEach((item) => {
-          const translation = translations.get(item.hash) || item.text;
+          let translation = translations.get(item.hash) || item.text;
+          // Remove context markers that might have leaked through
+          translation = translation.replace(/\s*\{\{__ctx__:[^}]+\}\}\s*/g, '');
           item.resolve(translation);
         });
       } catch (error) {

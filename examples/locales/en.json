@@ -1,0 +1,54 @@
+{
+  "common": {
+    "welcome": "Welcome to our application",
+    "login": "Log in",
+    "logout": "Log out",
+    "signup": "Sign up",
+    "cancel": "Cancel",
+    "save": { "$t": "Save", "$ctx": "button: save changes to disk" },
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading...",
+    "post": { "$t": "Post", "$ctx": "verb: publish content to feed" },
+    "file": { "$t": "File", "$ctx": "noun: menu item for file operations" },
+    "match": { "$t": "Match", "$ctx": "verb: find matching items" }
+  },
+  "navigation": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "settings": "Settings",
+    "profile": "Profile",
+    "help": "Help & Support"
+  },
+  "auth": {
+    "loginTitle": "Welcome back",
+    "loginSubtitle": "Enter your credentials to access your account",
+    "emailLabel": "Email address",
+    "passwordLabel": "Password",
+    "forgotPassword": "Forgot your password?",
+    "noAccount": "Don't have an account?",
+    "signupLink": "Create one here"
+  },
+  "dashboard": {
+    "greeting": "Hello, {{name}}!",
+    "stats": {
+      "totalUsers": "Total Users",
+      "activeProjects": "Active Projects",
+      "revenue": "Revenue",
+      "growth": "Growth"
+    },
+    "recentActivity": "Recent Activity",
+    "noActivity": "No recent activity to display"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "notFound": "The page you're looking for doesn't exist.",
+    "unauthorized": "You don't have permission to access this resource.",
+    "networkError": "Unable to connect. Please check your internet connection."
+  },
+  "notifications": {
+    "success": "Operation completed successfully!",
+    "warning": "Please review the following items before proceeding.",
+    "info": "Here's some information you might find useful."
+  }
+}

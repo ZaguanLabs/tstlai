@@ -75,3 +75,50 @@ Can also be set via the `TSTLAI_EXCLUDED_TEXT` environment variable (comma-separ
 | `OPENAI_BASE_URL`      | API Base URL                                                                             |
 | `REDIS_URL`            | Redis connection string                                                                  |
 | `TSTLAI_EXCLUDED_TEXT` | Comma-separated list of terms to exclude from translation (e.g. `BrandName,AnotherTerm`) |
+
+## Contextual Translation
+
+### API Usage
+
+The `translateText` method accepts an optional context parameter for disambiguation:
+
+```typescript
+// Without context - AI guesses meaning
+await tstlai.translateText('Save');
+
+// With context - AI knows it's a button action
+await tstlai.translateText('Save', 'es_ES', 'button: save file to disk');
+
+// More examples
+await tstlai.translateText('Post', undefined, 'verb: publish content');
+await tstlai.translateText('Match', 'de_DE', 'noun: sports game');
+```
+
+### JSON Format (CLI)
+
+For the CLI `generate` command, use the `$t` / `$ctx` format:
+
+```json
+{
+  "actions": {
+    "save": { "$t": "Save", "$ctx": "button: save file to disk" },
+    "post": { "$t": "Post", "$ctx": "verb: publish content" },
+    "file": { "$t": "File", "$ctx": "noun: menu item" }
+  },
+  "labels": {
+    "title": "Welcome"
+  }
+}
+```
+
+- `$t` - The text to translate
+- `$ctx` - Context hint (used by AI, stripped from output)
+
+Plain strings (like `"title": "Welcome"`) work as before.
+
+### Best Practices
+
+1. **Be specific** - "verb: publish content" beats just "verb"
+2. **Include UI context** - "button", "menu item", "page title", "error message"
+3. **Mention domain** - "sports", "finance", "medical" when relevant
+4. **Only when needed** - Don't add context to unambiguous phrases like "Welcome to our app"

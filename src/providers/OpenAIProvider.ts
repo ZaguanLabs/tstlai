@@ -124,9 +124,10 @@ Translate the provided texts into idiomatic ${targetLangName}.
 - **Tone**: Maintain the original intent but adapt the wording to fit the target culture's expectations.
 - **HTML Safety**: Do NOT translate HTML tags, class names, IDs, or attributes.
 - **Interpolation**: Do NOT translate variables (e.g., {{name}}, {count}).
+- **Context Hints**: If you see {{__ctx__:...}}, use that hint to disambiguate the translation, then REMOVE the hint from your output. Example: "Save {{__ctx__:button to save file}}" → translate "Save" as a verb for saving files, output only the translated word without the hint.
 
 # Format
-Return ONLY a JSON array of strings in the exact same order as the input.`;
+Return ONLY a JSON array of strings in the exact same order as the input. Do NOT include any {{__ctx__:...}} markers in your output.`;
 
     if (excludedTerms && excludedTerms.length > 0) {
       systemPrompt += `\n\n# Exclusions
@@ -231,9 +232,10 @@ Translate the provided texts into idiomatic ${targetLangName}.
 - **Tone**: Maintain the original intent but adapt the wording to fit the target culture's expectations.
 - **HTML Safety**: Do NOT translate HTML tags, class names, IDs, or attributes.
 - **Interpolation**: Do NOT translate variables (e.g., {{name}}, {count}).
+- **Context Hints**: If you see {{__ctx__:...}}, use that hint to disambiguate the translation, then REMOVE the hint from your output.
 
 # Format
-Return ONLY a JSON array of strings in the exact same order as the input. Each string on its own line for clarity.`;
+Return ONLY a JSON array of strings in the exact same order as the input. Each string on its own line for clarity. Do NOT include any {{__ctx__:...}} markers in your output.`;
 
     if (excludedTerms && excludedTerms.length > 0) {
       systemPrompt += `\n\n# Exclusions
