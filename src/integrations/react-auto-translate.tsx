@@ -19,6 +19,45 @@ interface AutoTranslateProps {
   ignoredClasses?: string[];
 }
 
+/**
+ * Strip context markers from text.
+ * Supports both formats:
+ * - "Text$ctx:context_hint" (inline suffix)
+ * - "Text {{__ctx__:context hint}}" (template format)
+ */
+function stripContextMarkers(text: string): string {
+  return text
+    .replace(/\$ctx:[^\s]*/g, '') // Strip $ctx:suffix format
+    .replace(/\s*\{\{__ctx__:[^}]+\}\}\s*/g, '') // Strip {{__ctx__:...}} format
+    .trim();
+}
+
+/**
+ * Extract context from text for sending to API.
+ * Returns { text, context } where context is undefined if none found.
+ */
+function extractContext(text: string): { text: string; context?: string } {
+  // Check for $ctx:suffix format
+  const suffixMatch = text.match(/\$ctx:([^\s]+)/);
+  if (suffixMatch) {
+    return {
+      text: text.replace(/\$ctx:[^\s]*/g, '').trim(),
+      context: suffixMatch[1].replace(/_/g, ' '),
+    };
+  }
+
+  // Check for {{__ctx__:...}} format
+  const templateMatch = text.match(/\{\{__ctx__:([^}]+)\}\}/);
+  if (templateMatch) {
+    return {
+      text: text.replace(/\s*\{\{__ctx__:[^}]+\}\}\s*/g, '').trim(),
+      context: templateMatch[1],
+    };
+  }
+
+  return { text };
+}
+
 export const AutoTranslate = ({
   endpoint = '/api/tstlai/translate',
   streamEndpoint = '/api/tstlai/stream',
@@ -33,8 +72,8 @@ export const AutoTranslate = ({
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const collectTextNodes = (): { node: Node; text: string }[] => {
-      const textNodes: { node: Node; text: string }[] = [];
+    const collectTextNodes = (): { node: Node; text: string; context?: string }[] => {
+      const textNodes: { node: Node; text: string; context?: string }[] = [];
 
       const walk = (node: Node) => {
         if (processingRef.current.has(node)) return;
@@ -49,9 +88,10 @@ export const AutoTranslate = ({
 
         // Text Node Check
         if (node.nodeType === 3) {
-          const text = node.textContent?.trim();
-          if (text && text.length > 1 && !/^\d+$/.test(text)) {
-            textNodes.push({ node, text });
+          const rawText = node.textContent?.trim();
+          if (rawText && rawText.length > 1 && !/^\d+$/.test(rawText)) {
+            const { text, context } = extractContext(rawText);
+            textNodes.push({ node, text, context });
             processingRef.current.add(node);
           }
         }
@@ -63,15 +103,20 @@ export const AutoTranslate = ({
       return textNodes;
     };
 
-    const translateBatch = async (textNodes: { node: Node; text: string }[]) => {
+    const translateBatch = async (textNodes: { node: Node; text: string; context?: string }[]) => {
       if (textNodes.length === 0) return;
 
       try {
+        // Build texts with context hints for the API
+        const textsWithContext = textNodes.map((t) =>
+          t.context ? `${t.text} {{__ctx__:${t.context}}}` : t.text,
+        );
+
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            texts: textNodes.map((t) => t.text),
+            texts: textsWithContext,
             targetLang,
           }),
         });
@@ -80,7 +125,8 @@ export const AutoTranslate = ({
 
         textNodes.forEach((item, index) => {
           if (data.translations && data.translations[index]) {
-            item.node.textContent = data.translations[index];
+            // Strip any leaked context markers from translation
+            item.node.textContent = stripContextMarkers(data.translations[index]);
           }
         });
       } catch (err) {
@@ -88,15 +134,20 @@ export const AutoTranslate = ({
       }
     };
 
-    const translateStream = async (textNodes: { node: Node; text: string }[]) => {
+    const translateStream = async (textNodes: { node: Node; text: string; context?: string }[]) => {
       if (textNodes.length === 0) return;
 
       try {
+        // Build texts with context hints for the API
+        const textsWithContext = textNodes.map((t) =>
+          t.context ? `${t.text} {{__ctx__:${t.context}}}` : t.text,
+        );
+
         const response = await fetch(streamEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            texts: textNodes.map((t) => t.text),
+            texts: textsWithContext,
             targetLang,
           }),
         });
@@ -108,7 +159,8 @@ export const AutoTranslate = ({
           const data = await response.json();
           textNodes.forEach((item, index) => {
             if (data.translations && data.translations[index]) {
-              item.node.textContent = data.translations[index];
+              // Strip any leaked context markers from translation
+              item.node.textContent = stripContextMarkers(data.translations[index]);
             }
           });
           return;
@@ -126,7 +178,8 @@ export const AutoTranslate = ({
         const applyPendingUpdates = () => {
           pendingUpdates.forEach(({ index, translation }) => {
             if (textNodes[index]) {
-              textNodes[index].node.textContent = translation;
+              // Strip any leaked context markers (should already be clean, but safety first)
+              textNodes[index].node.textContent = stripContextMarkers(translation);
             }
           });
           pendingUpdates.length = 0;
@@ -154,14 +207,16 @@ export const AutoTranslate = ({
               try {
                 const parsed = JSON.parse(data);
                 if (parsed.index !== undefined && parsed.translation) {
+                  // Strip any leaked context markers
+                  const cleanTranslation = stripContextMarkers(parsed.translation);
                   if (firstUpdateSent) {
                     // After buffer period, apply immediately
                     if (textNodes[parsed.index]) {
-                      textNodes[parsed.index].node.textContent = parsed.translation;
+                      textNodes[parsed.index].node.textContent = cleanTranslation;
                     }
                   } else {
                     // During buffer period, queue updates
-                    pendingUpdates.push(parsed);
+                    pendingUpdates.push({ index: parsed.index, translation: cleanTranslation });
                   }
                 }
               } catch {
