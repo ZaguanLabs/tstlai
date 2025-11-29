@@ -266,13 +266,23 @@ ${excludedTerms.map((term) => `- ${term}`).join('\n')}`;
         // Parse the streaming JSON array character by character
         for (const char of content) {
           if (escapeNext) {
-            currentString += char;
+            // Handle JSON escape sequences properly
+            if (char === 'n') {
+              currentString += '\n';
+            } else if (char === 't') {
+              currentString += '\t';
+            } else if (char === 'r') {
+              currentString += '\r';
+            } else {
+              // For \" \\ and other escapes, just add the character itself
+              currentString += char;
+            }
             escapeNext = false;
             continue;
           }
 
           if (char === '\\' && inString) {
-            currentString += char;
+            // Don't add backslash to output - wait for next char to unescape
             escapeNext = true;
             continue;
           }
