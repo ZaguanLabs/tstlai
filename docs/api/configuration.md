@@ -177,3 +177,15 @@ const result = await tstlai.process(html);
 console.log(result.dir); // 'rtl' for Arabic
 console.log(result.lang); // 'ar_SA'
 ```
+
+### Code Blocks in RTL Pages
+
+Code should always remain left-to-right, even on RTL pages. Add this CSS:
+
+```css
+pre,
+code {
+  direction: ltr;
+  text-align: left;
+}
+```

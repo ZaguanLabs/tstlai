@@ -365,6 +365,18 @@ tstlai.isRtl('he_IL'); // true
 tstlai.getDir('ar_SA'); // 'rtl'
 ```
 
+### Code Blocks in RTL Pages
+
+Code should always remain left-to-right. Add this CSS to your stylesheet:
+
+```css
+pre,
+code {
+  direction: ltr;
+  text-align: left;
+}
+```
+
 ## License
 
 MIT
