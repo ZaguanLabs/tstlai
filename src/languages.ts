@@ -378,6 +378,7 @@ export const SUPPORTED_LOCALE_CODES = new Set(SUPPORTED_LANGUAGES.map((l) => l.c
  */
 export const SHORT_CODE_DEFAULTS: Record<string, string> = {
   en: 'en_US',
+  gb: 'en_GB', // Great Britain -> British English
   de: 'de_DE',
   es: 'es_ES',
   fr: 'fr_FR',
@@ -385,6 +386,7 @@ export const SHORT_CODE_DEFAULTS: Record<string, string> = {
   ja: 'ja_JP',
   pt: 'pt_BR',
   zh: 'zh_CN',
+  tw: 'zh_TW', // Taiwan -> Traditional Chinese
   ar: 'ar_SA',
   bn: 'bn_BD',
   cs: 'cs_CZ',
@@ -406,6 +408,7 @@ export const SHORT_CODE_DEFAULTS: Record<string, string> = {
   th: 'th_TH',
   tr: 'tr_TR',
   uk: 'uk_UA',
+  ua: 'uk_UA', // Ukraine (country code) -> Ukrainian
   vi: 'vi_VN',
   bg: 'bg_BG',
   ca: 'ca_ES',
