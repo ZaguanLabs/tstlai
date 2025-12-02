@@ -1,6 +1,62 @@
 import * as crypto from 'crypto';
 import { Tstlai } from '../core/Tstlai';
 
+/** Default limits for route handlers */
+const DEFAULT_LIMITS = {
+  maxTexts: 100,
+  maxTotalChars: 100000,
+};
+
+/** Options for route handler security */
+export interface RouteHandlerOptions {
+  /** Maximum number of texts per request (default: 100) */
+  maxTexts?: number;
+  /** Maximum total characters across all texts (default: 100000) */
+  maxTotalChars?: number;
+  /** Disable all built-in limits (not recommended) */
+  disableLimits?: boolean;
+}
+
+let securityWarningShown = false;
+
+function showSecurityWarning(): void {
+  if (securityWarningShown) return;
+  if (process.env.NODE_ENV !== 'production') return;
+
+  securityWarningShown = true;
+  console.warn(
+    '\n⚠️  [tstlai] Security Warning: Translation endpoint is publicly accessible.\n' +
+      '   Add rate limiting and origin validation for production use.\n' +
+      '   See: https://github.com/AiTsLai/tstlai/blob/main/docs/guides/security.md\n',
+  );
+}
+
+function validateRequestLimits(
+  texts: string[],
+  options: RouteHandlerOptions,
+): { valid: boolean; error?: string } {
+  if (options.disableLimits) {
+    return { valid: true };
+  }
+
+  const maxTexts = options.maxTexts ?? DEFAULT_LIMITS.maxTexts;
+  const maxTotalChars = options.maxTotalChars ?? DEFAULT_LIMITS.maxTotalChars;
+
+  if (texts.length > maxTexts) {
+    return { valid: false, error: `Too many texts: ${texts.length} exceeds limit of ${maxTexts}` };
+  }
+
+  const totalChars = texts.reduce((sum, t) => sum + (t?.length || 0), 0);
+  if (totalChars > maxTotalChars) {
+    return {
+      valid: false,
+      error: `Request too large: ${totalChars} chars exceeds limit of ${maxTotalChars}`,
+    };
+  }
+
+  return { valid: true };
+}
+
 // Re-export AutoTranslate for client-side translation
 export { AutoTranslate } from './react-auto-translate';
 
@@ -66,15 +122,39 @@ export const createPageTranslations = async (
 /**
  * Creates a Route Handler for Next.js App Router.
  * Uses standard Response API (no Next.js imports required).
+ *
+ * @param translator - Tstlai instance
+ * @param options - Optional security limits (maxTexts, maxTotalChars, disableLimits)
+ *
+ * @example
+ * ```typescript
+ * // Basic usage with default limits
+ * export const POST = createNextRouteHandler(translator);
+ *
+ * // Custom limits
+ * export const POST = createNextRouteHandler(translator, { maxTexts: 50 });
+ * ```
  */
-export const createNextRouteHandler = (translator: Tstlai) => {
+export const createNextRouteHandler = (translator: Tstlai, options: RouteHandlerOptions = {}) => {
   return async (req: Request): Promise<Response> => {
+    // Show security warning once in production
+    showSecurityWarning();
+
     try {
       const body = await req.json();
       const { texts, targetLang } = body;
 
       if (!texts || !Array.isArray(texts)) {
         return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Validate request limits
+      const validation = validateRequestLimits(texts, options);
+      if (!validation.valid) {
+        return new Response(JSON.stringify({ error: validation.error }), {
           status: 400,
           headers: { 'Content-Type': 'application/json' },
         });
@@ -109,6 +189,9 @@ export const createNextRouteHandler = (translator: Tstlai) => {
  * Creates a Streaming Route Handler for Next.js App Router.
  * Streams translations as Server-Sent Events (SSE) for progressive updates.
  *
+ * @param translator - Tstlai instance
+ * @param options - Optional security limits (maxTexts, maxTotalChars, disableLimits)
+ *
  * @example
  * ```typescript
  * // src/app/api/tstlai/stream/route.ts
@@ -118,14 +201,29 @@ export const createNextRouteHandler = (translator: Tstlai) => {
  * export const POST = createNextStreamingRouteHandler(getTranslator());
  * ```
  */
-export const createNextStreamingRouteHandler = (translator: Tstlai) => {
+export const createNextStreamingRouteHandler = (
+  translator: Tstlai,
+  options: RouteHandlerOptions = {},
+) => {
   return async (req: Request): Promise<Response> => {
+    // Show security warning once in production
+    showSecurityWarning();
+
     try {
       const body = await req.json();
       const { texts, targetLang } = body;
 
       if (!texts || !Array.isArray(texts)) {
         return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Validate request limits
+      const validation = validateRequestLimits(texts, options);
+      if (!validation.valid) {
+        return new Response(JSON.stringify({ error: validation.error }), {
           status: 400,
           headers: { 'Content-Type': 'application/json' },
         });

@@ -85,6 +85,46 @@ npx tstlai generate -i en.json -l de,ja -c "E-commerce website"
 
 Or use `excludedTerms` in config for global exclusions.
 
+## Security
+
+tstlai includes built-in protections and provides guidance for secure deployments:
+
+### Built-in Protections
+
+- **XSS Safe** — Translations are applied via `textContent`, not `innerHTML`
+- **Request Limits** — Route handlers enforce default limits (100 texts, 100K chars per request)
+- **Production Warnings** — Console warnings alert you to add rate limiting
+
+### Safest Option: Server-Side Only
+
+Use `createPageTranslations` or `CLI generate` to avoid exposing any public endpoint:
+
+```typescript
+// No public API needed—runs entirely on your server
+const t = await createPageTranslations(translator, ['Welcome', 'About us']);
+return <h1>{t('Welcome')}</h1>;
+```
+
+### If Using Client-Side Translation
+
+When exposing translation endpoints (e.g., for `AutoTranslate`), you **must** implement:
+
+- **Rate limiting** — Prevent API abuse and cost overruns
+- **Origin validation** — Restrict access to your domains
+- **Monitoring** — Track usage and set billing alerts with your AI provider
+
+```typescript
+// Example: Customize limits
+export const POST = createNextRouteHandler(translator, {
+  maxTexts: 50, // Stricter limit
+  maxTotalChars: 25000,
+});
+```
+
+> ⚠️ **Without rate limiting, your endpoint is exploitable.** An attacker can use your AI credits for free translations.
+
+📖 **[Full Security Guide](docs/guides/security.md)** — Rate limiting examples, origin validation, complete protected route implementation.
+
 ## License
 
 MIT

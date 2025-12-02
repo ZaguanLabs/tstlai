@@ -17,6 +17,7 @@ Welcome to the tstlai documentation.
 | [Express / Node.js](guides/frameworks.md)           | Middleware for server-rendered apps           |
 | [Caching](guides/caching.md)                        | Redis and in-memory caching strategies        |
 | [CLI Generate](guides/cli-generate.md)              | Generate translation files from source JSON   |
+| [Security](guides/security.md)                      | API protection, XSS, and best practices       |
 
 ## API Reference
 
