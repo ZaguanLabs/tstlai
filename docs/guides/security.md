@@ -60,6 +60,14 @@ Implement rate limiting to prevent abuse. Example with a simple in-memory limite
 // lib/rate-limit.ts
 const ipCounts = new Map<string, { count: number; reset: number }>();
 
+// Cleanup expired entries periodically to prevent memory leaks
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, record] of ipCounts) {
+    if (now >= record.reset) ipCounts.delete(ip);
+  }
+}, 60000);
+
 export function rateLimit(
   ip: string,
   limit = 100,
@@ -87,7 +95,9 @@ export function rateLimit(
 import { rateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: Request) {
-  const ip = req.headers.get('x-forwarded-for') || 'unknown';
+  // Note: x-forwarded-for can be spoofed if not behind a trusted proxy.
+  // In production, only trust this header from your load balancer.
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
   const { allowed, remaining } = rateLimit(ip, 100, 60000);
 
   if (!allowed) {
@@ -148,7 +158,81 @@ export async function POST(req: Request) {
 }
 ```
 
-#### 4. Authentication (Optional)
+#### 4. Session Tokens (Recommended)
+
+Use dynamic, session-specific endpoints that are impossible to guess:
+
+```typescript
+// lib/session-token.ts
+import 'server-only';
+import { randomBytes } from 'crypto';
+
+const sessionTokens = new Map<string, { createdAt: number; expiresAt: number }>();
+const TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+export function generateSessionToken(): string {
+  const token = randomBytes(32).toString('base64url');
+  const now = Date.now();
+  sessionTokens.set(token, { createdAt: now, expiresAt: now + TOKEN_TTL_MS });
+  return token;
+}
+
+export function validateSessionToken(token: string): boolean {
+  const session = sessionTokens.get(token);
+  if (!session || Date.now() > session.expiresAt) {
+    sessionTokens.delete(token);
+    return false;
+  }
+  return true;
+}
+```
+
+```typescript
+// app/api/[sessionToken]/translate/route.ts
+import { validateSessionToken } from '@/lib/session-token';
+
+export const POST = async (
+  req: Request,
+  { params }: { params: Promise<{ sessionToken: string }> },
+) => {
+  const { sessionToken } = await params;
+
+  if (!validateSessionToken(sessionToken)) {
+    return new Response('Invalid or expired session', { status: 401 });
+  }
+
+  // ... handle translation
+};
+```
+
+```tsx
+// In your layout (server component)
+import { generateSessionToken } from '@/lib/session-token';
+
+export default async function Layout({ children }) {
+  const sessionToken = generateSessionToken();
+
+  return (
+    <>
+      {children}
+      <AutoTranslate
+        endpoint={`/api/${sessionToken}/translate`}
+        streamEndpoint={`/api/${sessionToken}/stream`}
+      />
+    </>
+  );
+}
+```
+
+This approach:
+
+- ✅ Endpoints are cryptographically random (256 bits of entropy)
+- ✅ Tokens expire after 24 hours
+- ✅ Attackers cannot guess valid endpoints
+- ✅ Each page render gets a unique token
+- ⚠️ For multi-instance deployments, use Redis to share token state
+
+#### 5. Authentication (Optional)
 
 For sensitive deployments, require authentication:
 
@@ -164,6 +248,25 @@ export async function POST(req: Request) {
   // ... handle translation
 }
 ```
+
+#### 6. CSRF Protection (Cookie-Auth Only)
+
+If your translation endpoint uses cookie-based authentication (e.g., session cookies), you should add CSRF protection:
+
+```typescript
+export async function POST(req: Request) {
+  const csrfToken = req.headers.get('x-csrf-token');
+  const expectedToken = cookies().get('csrf-token')?.value;
+
+  if (!csrfToken || csrfToken !== expectedToken) {
+    return new Response('Invalid CSRF token', { status: 403 });
+  }
+
+  // ... handle translation
+}
+```
+
+> **Note**: CSRF is not needed if you use Bearer tokens or session tokens in the URL path, as these are not automatically sent by the browser like cookies are.
 
 ## Server-Side Only Mode
 
@@ -246,7 +349,9 @@ export const POST = async (req: Request) => {
   }
 
   // 2. Rate limiting
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
+  // Note: x-forwarded-for can be spoofed if not behind a trusted proxy.
+  // In production, only trust this header from your load balancer.
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
   const { allowed } = rateLimit(ip, 100, 60000);
   if (!allowed) {
     return new Response('Too Many Requests', { status: 429 });
@@ -313,4 +418,4 @@ Before deploying to production:
 
 ## Reporting Security Issues
 
-If you discover a security vulnerability in tstlai, please report it responsibly by emailing [security contact] rather than opening a public issue.
+If you discover a security vulnerability in tstlai, please report it responsibly by emailing security@zaguanai.com rather than opening a public issue.
