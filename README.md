@@ -2,16 +2,33 @@
 
 **tstlai** is middleware for **Just-In-Time AI localization** with intelligent caching to minimize costs and latency.
 
-> **Philosophy:** Don't pay to translate the same string twice.
+## Why tstlai?
+
+Traditional i18n requires maintaining separate JSON files for each language - extracting strings, syncing changes across files, and coordinating with translators. As your app grows, this becomes a maintenance burden that slows down development.
+
+tstlai takes a different approach:
+
+- **One source of truth** - Maintain a single JSON file or write inline. Either way, you never sync multiple language files.
+- **Add languages instantly** - One line of config. No translation workflow, no waiting on translators.
+- **Context-aware accuracy** - Unlike standard auto-translation, AI understands context. "Save" translates correctly whether it's a button, a discount, or a rescue mission.
+- **Pay once per string** - Intelligent caching means each unique string is translated only once.
+
+## How It Works
+
+1. You write your app in your source language
+2. tstlai intercepts text at render time (or build time)
+3. New strings are translated via AI and cached
+4. Cached translations are served instantly on subsequent requests
+
+The result: your app supports any language without changing your development workflow.
 
 ## Features
 
-- **Zero-Config** — No translation files to maintain
-- **Cost-Efficient** — Smart caching (Redis/Memory) means you pay once per unique string
-- **HTML-Safe** — Only text is translated; structure, classes, and attributes stay intact
-- **Context-Aware** — AI adapts tone for your domain (Marketing, Legal, etc.)
-- **RTL Support** — Automatic detection for Arabic, Hebrew, Persian, etc.
-- **CLI Generation** — Generate static translation files at build time
+- **HTML-Safe** - Only text nodes are translated; structure, classes, and attributes stay intact
+- **RTL Support** - Automatic `dir` and `lang` attributes for Arabic, Hebrew, Persian, etc.
+- **Flexible Caching** - Redis for production, in-memory for development
+- **Multiple Integration Modes** - Auto-translate, server-side, or CLI generation at build time
+- **Framework Support** - Next.js, Express, Fastify, Astro, Remix
 
 ## Installation
 
@@ -91,9 +108,9 @@ tstlai includes built-in protections and provides guidance for secure deployment
 
 ### Built-in Protections
 
-- **XSS Safe** — Translations are applied via `textContent`, not `innerHTML`
-- **Request Limits** — Route handlers enforce default limits (100 texts, 100K chars per request)
-- **Production Warnings** — Console warnings alert you to add rate limiting
+- **XSS Safe** - Translations are applied via `textContent`, not `innerHTML`
+- **Request Limits** - Route handlers enforce default limits (100 texts, 100K chars per request)
+- **Production Warnings** - Console warnings alert you to add rate limiting
 
 ### Safest Option: Server-Side Only
 
@@ -109,9 +126,9 @@ return <h1>{t('Welcome')}</h1>;
 
 When exposing translation endpoints (e.g., for `AutoTranslate`), you **must** implement:
 
-- **Rate limiting** — Prevent API abuse and cost overruns
-- **Origin validation** — Restrict access to your domains
-- **Monitoring** — Track usage and set billing alerts with your AI provider
+- **Rate limiting** - Prevent API abuse and cost overruns
+- **Origin validation** - Restrict access to your domains
+- **Monitoring** - Track usage and set billing alerts with your AI provider
 
 ```typescript
 // Example: Customize limits
@@ -123,7 +140,7 @@ export const POST = createNextRouteHandler(translator, {
 
 > ⚠️ **Without rate limiting, your endpoint is exploitable.** An attacker can use your AI credits for free translations.
 
-📖 **[Full Security Guide](docs/guides/security.md)** — Rate limiting examples, origin validation, complete protected route implementation.
+📖 **[Full Security Guide](docs/guides/security.md)** - Rate limiting examples, origin validation, complete protected route implementation.
 
 ## License
 
