@@ -1,5 +1,11 @@
 import * as crypto from 'crypto';
-import { AIProvider, TranslationConfig, TranslationCache, ProcessedPage } from '../types';
+import {
+  AIProvider,
+  TranslationConfig,
+  TranslationCache,
+  ProcessedPage,
+  TranslationStyle,
+} from '../types';
 import { OpenAIProvider } from '../providers/OpenAIProvider';
 import { HTMLProcessor, TextNodeRef } from './HTMLProcessor';
 import { InMemoryCache } from './Cache';
@@ -79,6 +85,16 @@ export class Tstlai {
   /** Get translation context */
   getContext(): string | undefined {
     return this.config.translationContext;
+  }
+
+  /** Get glossary of preferred translations */
+  getGlossary(): Record<string, string> | undefined {
+    return this.config.glossary;
+  }
+
+  /** Get translation style/register */
+  getStyle(): TranslationStyle | undefined {
+    return this.config.style;
   }
 
   /**
@@ -274,6 +290,8 @@ export class Tstlai {
           targetLang,
           this.excludedTerms,
           this.config.translationContext,
+          this.config.glossary,
+          this.config.style,
         );
 
         // Properly await all cache writes

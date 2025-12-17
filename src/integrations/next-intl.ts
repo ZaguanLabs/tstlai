@@ -216,6 +216,8 @@ export const createStreamingNextIntlAdapter = (
         locale,
         translator.getExcludedTerms(),
         translator.getContext(),
+        translator.getGlossary(),
+        translator.getStyle(),
       );
 
       let streamIndex = 0;
@@ -285,6 +287,8 @@ export const createStreamingNextIntlAdapter = (
         locale,
         translator.getExcludedTerms(),
         translator.getContext(),
+        translator.getGlossary(),
+        translator.getStyle(),
       );
 
       let streamIndex = 0;
@@ -351,6 +355,8 @@ export const createStreamingNextIntlAdapter = (
               locale,
               translator.getExcludedTerms(),
               translator.getContext(),
+              translator.getGlossary(),
+              translator.getStyle(),
             );
 
             let streamIndex = 0;

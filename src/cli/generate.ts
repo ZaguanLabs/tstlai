@@ -7,6 +7,7 @@ import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import { OpenAIProvider } from '../providers/OpenAIProvider';
 import { normalizeLocaleCode, isLanguageSupported, getLanguageInfo } from '../languages';
+import type { TranslationStyle } from '../types';
 
 export interface GenerateOptions {
   inputFile: string;
@@ -14,6 +15,8 @@ export interface GenerateOptions {
   languages: string[];
   context?: string;
   excludedTerms?: string[];
+  glossary?: Record<string, string>;
+  style?: TranslationStyle;
   flatOutput?: boolean;
   dryRun?: boolean;
   verbose?: boolean;
@@ -164,8 +167,18 @@ function progressBar(current: number, total: number, width = 30): string {
  * Main generation function
  */
 export async function generateTranslations(options: GenerateOptions): Promise<TranslationStats[]> {
-  const { inputFile, outputDir, languages, context, excludedTerms, flatOutput, dryRun, verbose } =
-    options;
+  const {
+    inputFile,
+    outputDir,
+    languages,
+    context,
+    excludedTerms,
+    glossary,
+    style,
+    flatOutput,
+    dryRun,
+    verbose,
+  } = options;
 
   // Resolve paths
   const inputPath = path.resolve(inputFile);
@@ -291,6 +304,8 @@ export async function generateTranslations(options: GenerateOptions): Promise<Tr
           targetLang,
           excludedTerms,
           context,
+          glossary,
+          style,
         );
         translatedTexts.push(...batchTranslations);
 

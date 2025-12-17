@@ -293,6 +293,8 @@ export const createNextStreamingRouteHandler = (
               resolvedTargetLang,
               translator.getExcludedTerms(),
               translator.getContext(),
+              translator.getGlossary(),
+              translator.getStyle(),
             );
 
             let streamIndex = 0;

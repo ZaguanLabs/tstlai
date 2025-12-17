@@ -1,3 +1,9 @@
+/**
+ * Translation style/register for tone control.
+ * Helps the model produce more appropriate phrasing without hardcoded idiom mappings.
+ */
+export type TranslationStyle = 'formal' | 'neutral' | 'casual' | 'marketing' | 'technical';
+
 export interface TranslationConfig {
   targetLang: string;
   sourceLang?: string; // Source language (default: 'en'). When targetLang === sourceLang, translation is bypassed.
@@ -5,6 +11,18 @@ export interface TranslationConfig {
   cache?: CacheConfig;
   excludedTerms?: string[]; // Words/Phrases to never translate
   translationContext?: string; // High-level context (e.g. "Marketing site for B2B SaaS")
+  /**
+   * Optional glossary of preferred translations for specific phrases.
+   * Helps avoid literal translations of idioms and tech jargon.
+   * Example: { "on the fly": "fortløpende", "cutting-edge": "banebrytende" }
+   */
+  glossary?: Record<string, string>;
+  /**
+   * Optional style/register for the translation.
+   * Controls the tone and formality of the output.
+   * Default: 'neutral'
+   */
+  style?: TranslationStyle;
 }
 
 export interface AIProviderConfig {
@@ -34,6 +52,8 @@ export interface AIProvider {
     targetLang: string,
     excludedTerms?: string[],
     context?: string,
+    glossary?: Record<string, string>,
+    style?: TranslationStyle,
   ): Promise<string[]>;
 
   /**
@@ -45,6 +65,8 @@ export interface AIProvider {
     targetLang: string,
     excludedTerms?: string[],
     context?: string,
+    glossary?: Record<string, string>,
+    style?: TranslationStyle,
   ): AsyncGenerator<{ index: number; translation: string }>;
 
   /** Check if this provider supports streaming */

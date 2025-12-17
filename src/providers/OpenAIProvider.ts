@@ -1,6 +1,7 @@
 import { OpenAI } from 'openai';
 import { BaseAIProvider } from './BaseAIProvider';
-import { SUPPORTED_LANGUAGES, SHORT_CODE_DEFAULTS } from '../languages';
+import { SUPPORTED_LANGUAGES, SHORT_CODE_DEFAULTS, normalizeLocaleCode } from '../languages';
+import type { TranslationStyle } from '../types';
 
 /**
  * Build a mapping of locale codes to human-readable language names.
@@ -28,6 +29,122 @@ function buildLanguageNameMap(): Record<string, string> {
 
 // Pre-build the language name map once
 const LANGUAGE_NAMES = buildLanguageNameMap();
+
+/**
+ * Language-specific locale clarifications.
+ * Helps the model understand which variant to use.
+ */
+const LOCALE_CLARIFICATIONS: Record<string, string> = {
+  // Norwegian variants
+  nb_NO: 'Use Norwegian Bokmål (nb-NO), not Nynorsk.',
+  nb: 'Use Norwegian Bokmål (nb-NO), not Nynorsk.',
+  no: 'Use Norwegian Bokmål (nb-NO).', // 'no' is ambiguous, defaults to Bokmål
+  nn_NO: 'Use Norwegian Nynorsk (nn-NO), not Bokmål.',
+  nn: 'Use Norwegian Nynorsk (nn-NO), not Bokmål.',
+  // Chinese variants
+  zh_CN: 'Use Simplified Chinese characters.',
+  zh_TW: 'Use Traditional Chinese characters.',
+  zh: 'Use Simplified Chinese characters.',
+  // Portuguese variants
+  pt_BR: 'Use Brazilian Portuguese conventions.',
+  pt_PT: 'Use European Portuguese conventions.',
+  pt: 'Use Brazilian Portuguese conventions.',
+  // English variants
+  en_GB: 'Use British English spelling and conventions.',
+  en_US: 'Use American English spelling and conventions.',
+  // Spanish variants
+  es_ES: 'Use Castilian Spanish (Spain) conventions.',
+  es_MX: 'Use Mexican Spanish conventions.',
+};
+
+/**
+ * Style descriptions for the translation register.
+ */
+const STYLE_DESCRIPTIONS: Record<TranslationStyle, string> = {
+  formal:
+    'Use formal, professional language suitable for official documents or business communication.',
+  neutral: 'Use a neutral, professional tone suitable for general web content and documentation.',
+  casual:
+    'Use casual, conversational language suitable for blogs, social media, or friendly communication.',
+  marketing:
+    'Use persuasive, engaging language suitable for marketing copy, landing pages, and promotional content.',
+  technical:
+    'Use precise, technical language suitable for developer documentation, API references, and technical guides.',
+};
+
+/**
+ * Build the system prompt for translation.
+ * Centralizes all prompt logic for consistency between translate() and translateStream().
+ *
+ * @param targetLang - Target language code
+ * @param targetLangName - Human-readable language name
+ * @param context - Optional context for the translation
+ * @param excludedTerms - Terms to keep untranslated
+ * @param glossary - Optional user-provided glossary of preferred translations
+ * @param style - Optional style/register for the translation
+ */
+function buildSystemPrompt(
+  targetLang: string,
+  targetLangName: string,
+  context?: string,
+  excludedTerms?: string[],
+  glossary?: Record<string, string>,
+  style?: TranslationStyle,
+): string {
+  const normalizedLang = normalizeLocaleCode(targetLang);
+  const localeHint =
+    LOCALE_CLARIFICATIONS[targetLang] || LOCALE_CLARIFICATIONS[normalizedLang] || '';
+  const styleDesc = style ? STYLE_DESCRIPTIONS[style] : STYLE_DESCRIPTIONS.neutral;
+
+  let prompt = `# Role
+You are an expert native translator. You translate content to ${targetLangName} with the fluency and nuance of a highly educated native speaker.
+
+# Context
+${context ? `The content is for: ${context}. Adapt the tone to be appropriate for this context.` : 'The content is general web content.'}
+
+# Register
+${styleDesc}
+
+# Task
+Translate the provided texts into idiomatic ${targetLangName}.
+
+# Style Guide
+- **Natural Flow**: Avoid literal translations. Rephrase sentences to sound completely natural to a native speaker.
+- **Vocabulary**: Use precise, culturally relevant terminology. Avoid awkward "translationese" or robotic phrasing.
+- **Tone**: Maintain the original intent but adapt the wording to fit the target culture's expectations.
+- **Idioms**: Never translate idioms literally. Replace English idioms with natural ${targetLangName} equivalents.
+- **HTML/Code Safety**: Do NOT translate HTML tags, class names, IDs, attributes, URLs, email addresses, or content inside backticks or <code> blocks.
+- **Interpolation**: Do NOT translate variables or placeholders (e.g., {{name}}, {count}, %s, $1).
+- **Formatting**: Preserve meaningful whitespace (leading/trailing spaces, multiple spaces, newlines). Do not introduce or remove leading/trailing whitespace. Use idiomatic punctuation for the target language.
+- **Context Hints**: If you see {{__ctx__:...}}, use that hint to disambiguate the translation, then REMOVE the hint from your output.`;
+
+  // Add locale clarification if available
+  if (localeHint) {
+    prompt += `\n- **Locale**: ${localeHint}`;
+  }
+
+  // Add user-provided glossary if available
+  const glossaryEntries = glossary ? Object.entries(glossary) : [];
+  if (glossaryEntries.length > 0) {
+    prompt += `\n\n# Glossary\nWhen you encounter these phrases, prefer these translations (unless context demands otherwise):`;
+    for (const [source, target] of glossaryEntries) {
+      prompt += `\n- "${source}" → ${target}`;
+    }
+  }
+
+  // Add self-check instruction
+  prompt += `\n\n# Quality Check\nAfter translating each string, verify it sounds like native ${targetLangName} and not a calque. If any phrase sounds like a literal translation, rewrite it naturally.`;
+
+  // Add format requirements - use object envelope to match json_object mode
+  prompt += `\n\n# Format\nReturn a valid JSON object with a single key "translations" containing an array of strings in the exact same order as the input.\nExample: { "translations": ["translated string 1", "translated string 2"] }\n- Do NOT wrap in Markdown code blocks.\n- Do NOT include any {{__ctx__:...}} markers in your output.`;
+
+  // Add exclusions if provided
+  if (excludedTerms && excludedTerms.length > 0) {
+    prompt += `\n\n# Exclusions\nDo NOT translate the following terms. Keep them exactly as they appear in the source:\n${excludedTerms.map((term) => `- ${term}`).join('\n')}`;
+  }
+
+  return prompt;
+}
 
 export class OpenAIProvider extends BaseAIProvider {
   private client: OpenAI;
@@ -76,34 +193,18 @@ export class OpenAIProvider extends BaseAIProvider {
     targetLang: string,
     excludedTerms?: string[],
     context?: string,
+    glossary?: Record<string, string>,
+    style?: TranslationStyle,
   ): Promise<string[]> {
     const targetLangName = LANGUAGE_NAMES[targetLang] || targetLang;
-
-    let systemPrompt = `# Role
-You are an expert native translator. You translate content to ${targetLangName} with the fluency and nuance of a highly educated native speaker.
-
-# Context
-${context ? `The content is for: ${context}. Adapt the tone to be appropriate for this context.` : 'The content is general web content.'}
-
-# Task
-Translate the provided texts into idiomatic ${targetLangName}.
-
-# Style Guide
-- **Natural Flow**: Avoid literal translations. Rephrase sentences to sound completely natural to a native speaker.
-- **Vocabulary**: Use precise, culturally relevant terminology. Avoid awkward "translationese" or robotic phrasing.
-- **Tone**: Maintain the original intent but adapt the wording to fit the target culture's expectations.
-- **HTML Safety**: Do NOT translate HTML tags, class names, IDs, or attributes.
-- **Interpolation**: Do NOT translate variables (e.g., {{name}}, {count}).
-- **Context Hints**: If you see {{__ctx__:...}}, use that hint to disambiguate the translation, then REMOVE the hint from your output. Example: "Save {{__ctx__:button to save file}}" → translate "Save" as a verb for saving files, output only the translated word without the hint.
-
-# Format
-Return ONLY a JSON array of strings in the exact same order as the input. Do NOT include any {{__ctx__:...}} markers in your output.`;
-
-    if (excludedTerms && excludedTerms.length > 0) {
-      systemPrompt += `\n\n# Exclusions
-Do NOT translate the following terms. Keep them exactly as they appear in the source:
-${excludedTerms.map((term) => `- ${term}`).join('\n')}`;
-    }
+    const systemPrompt = buildSystemPrompt(
+      targetLang,
+      targetLangName,
+      context,
+      excludedTerms,
+      glossary,
+      style,
+    );
 
     const makeRequest = async () => {
       const response = await this.client.chat.completions.create({
@@ -112,8 +213,8 @@ ${excludedTerms.map((term) => `- ${term}`).join('\n')}`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: JSON.stringify(texts) },
         ],
-        temperature: 0.3,
-        response_format: { type: 'json_object' }, // Ensure JSON output
+        temperature: 0.1, // Low temperature for consistent, deterministic translations
+        response_format: { type: 'json_object' }, // Matches prompt's { "translations": [...] } format
       });
 
       if (!response) {
@@ -152,23 +253,24 @@ ${excludedTerms.map((term) => `- ${term}`).join('\n')}`;
 
       const parsed = JSON.parse(content);
 
-      // Handle if the API returns an object with a key like "translations" instead of a direct array
+      // Expected format: { "translations": ["...", "..."] }
+      if (parsed.translations && Array.isArray(parsed.translations)) {
+        return parsed.translations;
+      }
+
+      // Fallback: handle legacy array format or find first array in object
       if (Array.isArray(parsed)) {
         return parsed;
-      } else if (parsed.translations && Array.isArray(parsed.translations)) {
-        return parsed.translations;
-      } else {
-        // Try to find the first array value in the object
-        const values = Object.values(parsed);
-        const arrayValue = values.find((v) => Array.isArray(v));
-        if (arrayValue) {
-          return arrayValue as string[];
-        }
-
-        console.warn('Unexpected JSON structure from OpenAI:', parsed);
-        // Fallback: return texts (failed translation) or throw
-        throw new Error('Invalid JSON structure received from OpenAI');
       }
+
+      const values = Object.values(parsed);
+      const arrayValue = values.find((v) => Array.isArray(v));
+      if (arrayValue) {
+        return arrayValue as string[];
+      }
+
+      console.warn('Unexpected JSON structure from OpenAI:', parsed);
+      throw new Error('Invalid JSON structure received from OpenAI');
     } catch (error) {
       console.error('OpenAI Translation Error:', error);
       throw error;
@@ -176,42 +278,27 @@ ${excludedTerms.map((term) => `- ${term}`).join('\n')}`;
   }
 
   /**
-   * Stream translations one at a time.
-   * Uses OpenAI streaming to parse JSON array elements as they complete.
+   * Stream translations with progressive yielding.
+   * Buffers the complete JSON response, then yields translations one at a time.
+   * This ensures correct parsing of the { "translations": [...] } format.
    */
   async *translateStream(
     texts: string[],
     targetLang: string,
     excludedTerms?: string[],
     context?: string,
+    glossary?: Record<string, string>,
+    style?: TranslationStyle,
   ): AsyncGenerator<{ index: number; translation: string }> {
     const targetLangName = LANGUAGE_NAMES[targetLang] || targetLang;
-
-    let systemPrompt = `# Role
-You are an expert native translator. You translate content to ${targetLangName} with the fluency and nuance of a highly educated native speaker.
-
-# Context
-${context ? `The content is for: ${context}. Adapt the tone to be appropriate for this context.` : 'The content is general web content.'}
-
-# Task
-Translate the provided texts into idiomatic ${targetLangName}.
-
-# Style Guide
-- **Natural Flow**: Avoid literal translations. Rephrase sentences to sound completely natural to a native speaker.
-- **Vocabulary**: Use precise, culturally relevant terminology. Avoid awkward "translationese" or robotic phrasing.
-- **Tone**: Maintain the original intent but adapt the wording to fit the target culture's expectations.
-- **HTML Safety**: Do NOT translate HTML tags, class names, IDs, or attributes.
-- **Interpolation**: Do NOT translate variables (e.g., {{name}}, {count}).
-- **Context Hints**: If you see {{__ctx__:...}}, use that hint to disambiguate the translation, then REMOVE the hint from your output.
-
-# Format
-Return ONLY a JSON array of strings in the exact same order as the input. Each string on its own line for clarity. Do NOT include any {{__ctx__:...}} markers in your output.`;
-
-    if (excludedTerms && excludedTerms.length > 0) {
-      systemPrompt += `\n\n# Exclusions
-Do NOT translate the following terms. Keep them exactly as they appear in the source:
-${excludedTerms.map((term) => `- ${term}`).join('\n')}`;
-    }
+    const systemPrompt = buildSystemPrompt(
+      targetLang,
+      targetLangName,
+      context,
+      excludedTerms,
+      glossary,
+      style,
+    );
 
     try {
       const stream = await this.client.chat.completions.create({
@@ -220,68 +307,39 @@ ${excludedTerms.map((term) => `- ${term}`).join('\n')}`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: JSON.stringify(texts) },
         ],
-        temperature: 0.3,
+        temperature: 0.1, // Low temperature for consistent, deterministic translations
         stream: true,
       });
 
-      let currentIndex = 0;
-      let inString = false;
-      let escapeNext = false;
-      let currentString = '';
-      let arrayStarted = false;
-
+      // Buffer the entire streamed response
+      let fullContent = '';
       for await (const chunk of stream) {
         const content = chunk.choices?.[0]?.delta?.content || '';
+        fullContent += content;
+      }
 
-        // Parse the streaming JSON array character by character
-        for (const char of content) {
-          if (escapeNext) {
-            // Handle JSON escape sequences properly
-            if (char === 'n') {
-              currentString += '\n';
-            } else if (char === 't') {
-              currentString += '\t';
-            } else if (char === 'r') {
-              currentString += '\r';
-            } else {
-              // For \" \\ and other escapes, just add the character itself
-              currentString += char;
-            }
-            escapeNext = false;
-            continue;
-          }
+      // Parse the complete JSON
+      const parsed = JSON.parse(fullContent);
 
-          if (char === '\\' && inString) {
-            // Don't add backslash to output - wait for next char to unescape
-            escapeNext = true;
-            continue;
-          }
-
-          if (char === '"') {
-            if (inString) {
-              // End of string - we have a complete translation
-              if (arrayStarted && currentIndex < texts.length) {
-                yield { index: currentIndex, translation: currentString };
-                currentIndex++;
-              }
-              currentString = '';
-              inString = false;
-            } else {
-              // Start of string
-              inString = true;
-            }
-            continue;
-          }
-
-          if (char === '[' && !inString) {
-            arrayStarted = true;
-            continue;
-          }
-
-          if (inString) {
-            currentString += char;
-          }
+      // Extract translations array
+      let translations: string[];
+      if (parsed.translations && Array.isArray(parsed.translations)) {
+        translations = parsed.translations;
+      } else if (Array.isArray(parsed)) {
+        translations = parsed;
+      } else {
+        const values = Object.values(parsed);
+        const arrayValue = values.find((v) => Array.isArray(v));
+        if (arrayValue) {
+          translations = arrayValue as string[];
+        } else {
+          throw new Error('Invalid JSON structure received from OpenAI');
         }
+      }
+
+      // Yield translations one at a time for progressive UI updates
+      for (let i = 0; i < translations.length && i < texts.length; i++) {
+        yield { index: i, translation: translations[i] };
       }
     } catch (error) {
       console.error('OpenAI Streaming Translation Error:', error);
