@@ -1,5 +1,33 @@
 import { OpenAI } from 'openai';
 import { BaseAIProvider } from './BaseAIProvider';
+import { SUPPORTED_LANGUAGES, SHORT_CODE_DEFAULTS } from '../languages';
+
+/**
+ * Build a mapping of locale codes to human-readable language names.
+ * Includes both full locale codes (e.g., 'en_US') and short codes (e.g., 'en').
+ */
+function buildLanguageNameMap(): Record<string, string> {
+  const langNames: Record<string, string> = {};
+
+  // Add all supported languages with full locale codes
+  for (const lang of SUPPORTED_LANGUAGES) {
+    langNames[lang.code] = `${lang.language} (${lang.region})`;
+  }
+
+  // Add short code fallbacks by resolving to their default locale
+  for (const [shortCode, fullCode] of Object.entries(SHORT_CODE_DEFAULTS)) {
+    const lang = SUPPORTED_LANGUAGES.find((l) => l.code === fullCode);
+    if (lang) {
+      // Use just the language name for short codes (e.g., 'en' -> 'English')
+      langNames[shortCode] = lang.language;
+    }
+  }
+
+  return langNames;
+}
+
+// Pre-build the language name map once
+const LANGUAGE_NAMES = buildLanguageNameMap();
 
 export class OpenAIProvider extends BaseAIProvider {
   private client: OpenAI;
@@ -49,74 +77,7 @@ export class OpenAIProvider extends BaseAIProvider {
     excludedTerms?: string[],
     context?: string,
   ): Promise<string[]> {
-    // Language name mapping
-    const langNames: Record<string, string> = {
-      // Tier 1 (High Proficiency)
-      en_US: 'English (United States)',
-      en_GB: 'English (United Kingdom)',
-      de_DE: 'German (Germany)',
-      es_ES: 'Spanish (Spain)',
-      es_MX: 'Spanish (Mexico)',
-      fr_FR: 'French (France)',
-      it_IT: 'Italian (Italy)',
-      ja_JP: 'Japanese (Japan)',
-      pt_BR: 'Portuguese (Brazil)',
-      pt_PT: 'Portuguese (Portugal)',
-      zh_CN: 'Chinese (Simplified)',
-      zh_TW: 'Chinese (Traditional)',
-
-      // Tier 2 (Good)
-      ar_SA: 'Arabic (Saudi Arabia)',
-      bn_BD: 'Bengali (Bangladesh)',
-      cs_CZ: 'Czech (Czech Republic)',
-      da_DK: 'Danish (Denmark)',
-      el_GR: 'Greek (Greece)',
-      fi_FI: 'Finnish (Finland)',
-      he_IL: 'Hebrew (Israel)',
-      hi_IN: 'Hindi (India)',
-      hu_HU: 'Hungarian (Hungary)',
-      id_ID: 'Indonesian (Indonesia)',
-      ko_KR: 'Korean (South Korea)',
-      nl_NL: 'Dutch (Netherlands)',
-      nb_NO: 'Norwegian (Norway)',
-      pl_PL: 'Polish (Poland)',
-      ro_RO: 'Romanian (Romania)',
-      ru_RU: 'Russian (Russia)',
-      sv_SE: 'Swedish (Sweden)',
-      th_TH: 'Thai (Thailand)',
-      tr_TR: 'Turkish (Turkey)',
-      uk_UA: 'Ukrainian (Ukraine)',
-      vi_VN: 'Vietnamese (Vietnam)',
-
-      // Tier 3 (Functional)
-      bg_BG: 'Bulgarian (Bulgaria)',
-      ca_ES: 'Catalan (Spain)',
-      fa_IR: 'Persian (Iran)',
-      hr_HR: 'Croatian (Croatia)',
-      lt_LT: 'Lithuanian (Lithuania)',
-      lv_LV: 'Latvian (Latvia)',
-      ms_MY: 'Malay (Malaysia)',
-      sk_SK: 'Slovak (Slovakia)',
-      sl_SI: 'Slovenian (Slovenia)',
-      sr_RS: 'Serbian (Serbia)',
-      sw_KE: 'Swahili (Kenya)',
-      tl_PH: 'Tagalog (Philippines)',
-      ur_PK: 'Urdu (Pakistan)',
-
-      // Fallbacks
-      en: 'English',
-      es: 'Spanish',
-      fr: 'French',
-      de: 'German',
-      it: 'Italian',
-      pt: 'Portuguese',
-      zh: 'Chinese',
-      ja: 'Japanese',
-      ru: 'Russian',
-      ko: 'Korean',
-    };
-
-    const targetLangName = langNames[targetLang] || targetLang;
+    const targetLangName = LANGUAGE_NAMES[targetLang] || targetLang;
 
     let systemPrompt = `# Role
 You are an expert native translator. You translate content to ${targetLangName} with the fluency and nuance of a highly educated native speaker.
@@ -224,36 +185,7 @@ ${excludedTerms.map((term) => `- ${term}`).join('\n')}`;
     excludedTerms?: string[],
     context?: string,
   ): AsyncGenerator<{ index: number; translation: string }> {
-    const langNames: Record<string, string> = {
-      en_US: 'English (United States)',
-      en_GB: 'English (United Kingdom)',
-      de_DE: 'German (Germany)',
-      es_ES: 'Spanish (Spain)',
-      es_MX: 'Spanish (Mexico)',
-      fr_FR: 'French (France)',
-      it_IT: 'Italian (Italy)',
-      ja_JP: 'Japanese (Japan)',
-      pt_BR: 'Portuguese (Brazil)',
-      pt_PT: 'Portuguese (Portugal)',
-      zh_CN: 'Chinese (Simplified)',
-      zh_TW: 'Chinese (Traditional)',
-      ar_SA: 'Arabic (Saudi Arabia)',
-      ko_KR: 'Korean (South Korea)',
-      nl_NL: 'Dutch (Netherlands)',
-      ru_RU: 'Russian (Russia)',
-      en: 'English',
-      es: 'Spanish',
-      fr: 'French',
-      de: 'German',
-      it: 'Italian',
-      pt: 'Portuguese',
-      zh: 'Chinese',
-      ja: 'Japanese',
-      ru: 'Russian',
-      ko: 'Korean',
-    };
-
-    const targetLangName = langNames[targetLang] || targetLang;
+    const targetLangName = LANGUAGE_NAMES[targetLang] || targetLang;
 
     let systemPrompt = `# Role
 You are an expert native translator. You translate content to ${targetLangName} with the fluency and nuance of a highly educated native speaker.
