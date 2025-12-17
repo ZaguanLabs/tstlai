@@ -4,6 +4,7 @@ import { BaseAIProvider } from './BaseAIProvider';
 export class OpenAIProvider extends BaseAIProvider {
   private client: OpenAI;
   private model: string;
+  private clientConfig: { apiKey: string; baseURL: string; timeout: number };
 
   constructor(apiKey?: string, model?: string, baseUrl?: string, timeout?: number) {
     super();
@@ -11,6 +12,13 @@ export class OpenAIProvider extends BaseAIProvider {
     this.model = model || process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
     const resolvedBaseUrl = baseUrl || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
     const resolvedTimeout = timeout || 30000; // Default 30s to allow for cold-start translation of full pages
+
+    // Store config for client recreation
+    this.clientConfig = {
+      apiKey: resolvedApiKey,
+      baseURL: resolvedBaseUrl,
+      timeout: resolvedTimeout,
+    };
 
     // Debug logging (only in development)
     if (process.env.NODE_ENV === 'development' || process.env.TSTLAI_DEBUG) {
@@ -27,11 +35,12 @@ export class OpenAIProvider extends BaseAIProvider {
       console.warn('[OpenAIProvider] API Key not provided and not found in environment variables.');
     }
 
-    this.client = new OpenAI({
-      apiKey: resolvedApiKey,
-      baseURL: resolvedBaseUrl,
-      timeout: resolvedTimeout,
-    });
+    this.client = new OpenAI(this.clientConfig);
+  }
+
+  private recreateClient(): void {
+    console.warn('[OpenAIProvider] Recreating client due to stale connection');
+    this.client = new OpenAI(this.clientConfig);
   }
 
   async translate(
@@ -135,7 +144,7 @@ Do NOT translate the following terms. Keep them exactly as they appear in the so
 ${excludedTerms.map((term) => `- ${term}`).join('\n')}`;
     }
 
-    try {
+    const makeRequest = async () => {
       const response = await this.client.chat.completions.create({
         model: this.model,
         messages: [
@@ -146,9 +155,38 @@ ${excludedTerms.map((term) => `- ${term}`).join('\n')}`;
         response_format: { type: 'json_object' }, // Ensure JSON output
       });
 
+      if (!response) {
+        throw new Error('OpenAI client returned undefined response');
+      }
+      if (!response.choices || response.choices.length === 0) {
+        throw new Error('Empty response from OpenAI - no choices returned');
+      }
       const content = response.choices[0]?.message?.content;
       if (!content) {
         throw new Error('No content received from OpenAI');
+      }
+      return content;
+    };
+
+    try {
+      let content: string;
+      try {
+        content = await makeRequest();
+      } catch (firstError) {
+        // If we get an undefined response or connection error, recreate client and retry once
+        const isStaleConnection =
+          firstError instanceof TypeError ||
+          (firstError instanceof Error &&
+            (firstError.message.includes('undefined') ||
+              firstError.message.includes('ECONNRESET') ||
+              firstError.message.includes('socket hang up')));
+
+        if (isStaleConnection) {
+          this.recreateClient();
+          content = await makeRequest();
+        } else {
+          throw firstError;
+        }
       }
 
       const parsed = JSON.parse(content);
@@ -261,7 +299,7 @@ ${excludedTerms.map((term) => `- ${term}`).join('\n')}`;
       let arrayStarted = false;
 
       for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content || '';
+        const content = chunk.choices?.[0]?.delta?.content || '';
 
         // Parse the streaming JSON array character by character
         for (const char of content) {
