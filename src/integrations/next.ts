@@ -297,8 +297,7 @@ export const createNextStreamingRouteHandler = (
               translator.getStyle(),
             );
 
-            let streamIndex = 0;
-            for await (const { translation } of streamGenerator) {
+            for await (const { index: streamIndex, translation } of streamGenerator) {
               const item = cacheMisses[streamIndex];
               if (item) {
                 // Cache the translation
@@ -308,7 +307,6 @@ export const createNextStreamingRouteHandler = (
                 const data = JSON.stringify({ index: item.index, translation });
                 controller.enqueue(encoder.encode(`data: ${data}\n\n`));
               }
-              streamIndex++;
             }
 
             // Signal completion

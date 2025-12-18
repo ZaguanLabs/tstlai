@@ -264,21 +264,28 @@ export class Tstlai {
     let translatedCount = 0;
 
     // 1. Check Cache
-    await Promise.all(
+    // Use a Map to track cache results while preserving original order
+    const cacheResults = await Promise.all(
       items.map(async (item) => {
         const cacheKey = `${item.hash}:${targetLang}`;
         const cachedText = await this.cache.get(cacheKey);
-
-        if (cachedText) {
-          translations.set(item.hash, cachedText);
-          cachedCount++;
-        } else {
-          if (!cacheMisses.find((m) => m.hash === item.hash)) {
-            cacheMisses.push(item);
-          }
-        }
+        return { item, cachedText };
       }),
     );
+
+    // Process results in original order to maintain deterministic cacheMisses order
+    const seenHashes = new Set<string>();
+    for (const { item, cachedText } of cacheResults) {
+      if (cachedText) {
+        translations.set(item.hash, cachedText);
+        cachedCount++;
+      } else {
+        if (!seenHashes.has(item.hash)) {
+          seenHashes.add(item.hash);
+          cacheMisses.push(item);
+        }
+      }
+    }
 
     // 2. Translate Misses
     if (cacheMisses.length > 0) {
