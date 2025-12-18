@@ -145,3 +145,7 @@ export const POST = createNextRouteHandler(translator, {
 ## License
 
 MIT
+
+---
+
+_tstlai is developed by [Zaguán AI](https://zaguanai.com/), a 100% OpenAI-compatible API that makes it easy to switch between models._

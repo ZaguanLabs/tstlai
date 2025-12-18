@@ -154,9 +154,9 @@ export class OpenAIProvider extends BaseAIProvider {
   constructor(apiKey?: string, model?: string, baseUrl?: string, timeout?: number) {
     super();
     const resolvedApiKey = apiKey || process.env.OPENAI_API_KEY || '';
-    this.model = model || process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
+    this.model = model || process.env.OPENAI_MODEL || 'gpt-5.2-mini';
     const resolvedBaseUrl = baseUrl || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
-    const resolvedTimeout = timeout || 30000; // Default 30s to allow for cold-start translation of full pages
+    const resolvedTimeout = timeout || 60000; // Default 60s to allow for cold-start translation of full pages
 
     // Store config for client recreation
     this.clientConfig = {
