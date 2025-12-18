@@ -361,6 +361,9 @@ export class OpenAIProvider extends BaseAIProvider {
                   // Incomplete or invalid JSON, continue accumulating
                 }
                 currentElement = '';
+              } else {
+                // Clear currentElement for strings outside the translations array (e.g., the "translations" key)
+                currentElement = '';
               }
             } else {
               // Start of string
