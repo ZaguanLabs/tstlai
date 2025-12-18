@@ -220,8 +220,7 @@ export const createStreamingNextIntlAdapter = (
         translator.getStyle(),
       );
 
-      let streamIndex = 0;
-      for await (const { translation } of streamGenerator) {
+      for await (const { index: streamIndex, translation } of streamGenerator) {
         const item = cacheMisses[streamIndex];
         if (item && translation) {
           // Cache immediately
@@ -231,7 +230,6 @@ export const createStreamingNextIntlAdapter = (
           // Yield progressive update
           yield resultMessages;
         }
-        streamIndex++;
       }
     },
 
@@ -291,14 +289,12 @@ export const createStreamingNextIntlAdapter = (
         translator.getStyle(),
       );
 
-      let streamIndex = 0;
-      for await (const { translation } of streamGenerator) {
+      for await (const { index: streamIndex, translation } of streamGenerator) {
         const item = cacheMisses[streamIndex];
         if (item && translation) {
           await translator.cacheTranslation(item.hash, translation, locale);
           setByPath(resultMessages, item.key, translation);
         }
-        streamIndex++;
       }
 
       return resultMessages;
@@ -359,14 +355,12 @@ export const createStreamingNextIntlAdapter = (
               translator.getStyle(),
             );
 
-            let streamIndex = 0;
-            for await (const { translation } of streamGenerator) {
+            for await (const { index: streamIndex, translation } of streamGenerator) {
               const item = cacheMisses[streamIndex];
               if (item && translation) {
                 await translator.cacheTranslation(item.hash, translation, locale);
                 setByPath(resultMessages, item.key, translation);
               }
-              streamIndex++;
             }
 
             return resultMessages;
