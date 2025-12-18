@@ -1,6 +1,6 @@
 {
   "name": "tstlai",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Just-In-Time AI localization engine with intelligent caching",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

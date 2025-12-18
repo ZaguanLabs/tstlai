@@ -278,9 +278,8 @@ export class OpenAIProvider extends BaseAIProvider {
   }
 
   /**
-   * Stream translations with progressive yielding.
-   * Buffers the complete JSON response, then yields translations one at a time.
-   * This ensures correct parsing of the { "translations": [...] } format.
+   * Stream translations with true progressive yielding.
+   * Parses the JSON array incrementally and yields each translation as it completes.
    */
   async *translateStream(
     texts: string[],
@@ -311,35 +310,124 @@ export class OpenAIProvider extends BaseAIProvider {
         stream: true,
       });
 
-      // Buffer the entire streamed response
-      let fullContent = '';
+      // Incremental JSON array parser state
+      // Response format: { "translations": ["str1", "str2", ...] }
+      let buffer = '';
+      let inTranslationsArray = false;
+      let inString = false;
+      let escapeNext = false;
+      let arrayDepth = 0; // Depth within the translations array
+      let currentElement = '';
+      let elementIndex = 0;
+
       for await (const chunk of stream) {
         const content = chunk.choices?.[0]?.delta?.content || '';
-        fullContent += content;
-      }
+        buffer += content;
 
-      // Parse the complete JSON
-      const parsed = JSON.parse(fullContent);
+        // Process buffer character by character
+        while (buffer.length > 0) {
+          const char = buffer[0];
+          buffer = buffer.slice(1);
 
-      // Extract translations array
-      let translations: string[];
-      if (parsed.translations && Array.isArray(parsed.translations)) {
-        translations = parsed.translations;
-      } else if (Array.isArray(parsed)) {
-        translations = parsed;
-      } else {
-        const values = Object.values(parsed);
-        const arrayValue = values.find((v) => Array.isArray(v));
-        if (arrayValue) {
-          translations = arrayValue as string[];
-        } else {
-          throw new Error('Invalid JSON structure received from OpenAI');
+          // Handle escape sequences inside strings
+          if (escapeNext) {
+            if (inString) currentElement += char;
+            escapeNext = false;
+            continue;
+          }
+
+          if (char === '\\' && inString) {
+            currentElement += char;
+            escapeNext = true;
+            continue;
+          }
+
+          // Handle string boundaries
+          if (char === '"') {
+            if (inString) {
+              // End of string
+              currentElement += char;
+              inString = false;
+
+              // If we're at depth 1 in the translations array, this completes an element
+              if (inTranslationsArray && arrayDepth === 1) {
+                try {
+                  const translation = JSON.parse(currentElement);
+                  if (typeof translation === 'string' && elementIndex < texts.length) {
+                    yield { index: elementIndex, translation };
+                    elementIndex++;
+                  }
+                } catch {
+                  // Incomplete or invalid JSON, continue accumulating
+                }
+                currentElement = '';
+              }
+            } else {
+              // Start of string
+              inString = true;
+              currentElement += char;
+            }
+            continue;
+          }
+
+          // Inside a string, accumulate everything
+          if (inString) {
+            currentElement += char;
+            continue;
+          }
+
+          // Track array depth - we're looking for the translations array
+          if (char === '[') {
+            if (!inTranslationsArray) {
+              // This is the start of the translations array
+              inTranslationsArray = true;
+              arrayDepth = 1;
+            } else {
+              // Nested array inside a translation (rare but possible)
+              arrayDepth++;
+              currentElement += char;
+            }
+            continue;
+          }
+
+          if (char === ']') {
+            if (inTranslationsArray) {
+              arrayDepth--;
+              if (arrayDepth === 0) {
+                inTranslationsArray = false;
+              } else if (arrayDepth > 0) {
+                currentElement += char;
+              }
+            }
+            continue;
+          }
+
+          // Track nested objects inside array elements
+          if (char === '{') {
+            if (inTranslationsArray && arrayDepth >= 1) {
+              currentElement += char;
+            }
+            continue;
+          }
+
+          if (char === '}') {
+            if (inTranslationsArray && arrayDepth >= 1 && currentElement.length > 0) {
+              currentElement += char;
+            }
+            continue;
+          }
+
+          // Commas separate array elements at depth 1
+          if (char === ',' && inTranslationsArray && arrayDepth === 1) {
+            currentElement = '';
+            continue;
+          }
+
+          // Accumulate other characters if inside array element
+          if (inTranslationsArray && arrayDepth >= 1 && currentElement.length > 0) {
+            currentElement += char;
+          }
         }
-      }
-
-      // Yield translations one at a time for progressive UI updates
-      for (let i = 0; i < translations.length && i < texts.length; i++) {
-        yield { index: i, translation: translations[i] };
       }
     } catch (error) {
       console.error('OpenAI Streaming Translation Error:', error);
