@@ -106,17 +106,36 @@ ${context ? `The content is for: ${context}. Adapt the tone to be appropriate fo
 ${styleDesc}
 
 # Task
-Translate the provided texts into idiomatic ${targetLangName}.
+Translate the provided texts into natural, native ${targetLangName}. Preserve the original meaning, intent, and function of each text, not its source-language wording or sentence structure.
+
+# Method
+**Understand first, then translate**: Before translating each text, determine what it is doing for the user, not just what it says. Identify its meaning, intent, tone, and likely function on the page or in the product.
+
+**Translate by function**: Choose wording according to the text's role. Navigation, labels, controls, and settings should be brief, conventional, and immediately understandable. Marketing or persuasive copy should preserve the intended user impact and be rewritten freely when needed to sound native. Informational prose should be clear, fluent, and faithful. Legal, policy, account, billing, error, and support text should be translated conservatively and precisely.
+
+**Intent over wording**: Translate the intended meaning and user-facing effect of the text, not its exact phrasing. When a literal rendering sounds unnatural, stiff, ambiguous, or foreign, replace it with the expression a native speaker would naturally use.
 
 # Style Guide
-- **Natural Flow**: Avoid literal translations. Rephrase sentences to sound completely natural to a native speaker.
-- **Vocabulary**: Use precise, culturally relevant terminology. Avoid awkward "translationese" or robotic phrasing.
-- **Tone**: Maintain the original intent but adapt the wording to fit the target culture's expectations.
-- **Idioms**: Never translate idioms literally. Replace English idioms with natural ${targetLangName} equivalents.
+- **Natural Flow**: Avoid literal translations. Rephrase as needed so the result reads like original writing in ${targetLangName}, not a translation.
+- **Vocabulary**: Use precise, culturally appropriate, domain-appropriate terminology. Prefer standard native phrasing over source-language structure.
+- **Tone**: Preserve the source's intent and level of formality. Do not arbitrarily make precise text more casual or persuasive text more flat.
+- **Function**: Headings should read like headings, buttons like native buttons, labels like native labels, help text like help text, and legal text like legal text.
+- **Idioms and Metaphors**: Never translate idioms or figurative language literally. Use a natural equivalent, or rewrite the phrase entirely if needed.
+- **Consistency**: Keep terminology, register, and form of address consistent unless the source clearly changes them.
+- **Do No Harm**: Do not invent claims, emphasis, specificity, or meaning. Do not omit important qualifiers or soften warnings and limitations.
 - **HTML/Code Safety**: Do NOT translate HTML tags, class names, IDs, attributes, URLs, email addresses, or content inside backticks or <code> blocks.
 - **Interpolation**: Do NOT translate variables or placeholders (e.g., {{name}}, {count}, %s, $1).
 - **Formatting**: Preserve meaningful whitespace (leading/trailing spaces, multiple spaces, newlines). Do not introduce or remove leading/trailing whitespace. Use idiomatic punctuation for the target language.
-- **Context Hints**: If you see {{__ctx__:...}}, use that hint to disambiguate the translation, then REMOVE the hint from your output.`;
+- **Context Hints**: If you see {{__ctx__:...}}, use that hint to disambiguate the translation, then REMOVE the hint from your output.
+
+# Quality Check
+After translating each string, verify that it: (1) preserves the original meaning and function, (2) sounds native in ${targetLangName}, (3) uses the right style for the text type, and (4) contains no calques or translationese. If a phrase sounds translated, rewrite it with the wording a native speaker would actually expect.
+
+# Format
+Return a valid JSON object with a single key "translations" containing an array of strings in the exact same order as the input.
+Example: { "translations": ["translated string 1", "translated string 2"] }
+- Do NOT wrap in Markdown code blocks.
+- Do NOT include any {{__ctx__:...}} markers in your output.`;
 
   // Add locale clarification if available
   if (localeHint) {
@@ -131,12 +150,6 @@ Translate the provided texts into idiomatic ${targetLangName}.
       prompt += `\n- "${source}" → ${target}`;
     }
   }
-
-  // Add self-check instruction
-  prompt += `\n\n# Quality Check\nAfter translating each string, verify it sounds like native ${targetLangName} and not a calque. If any phrase sounds like a literal translation, rewrite it naturally.`;
-
-  // Add format requirements - use object envelope to match json_object mode
-  prompt += `\n\n# Format\nReturn a valid JSON object with a single key "translations" containing an array of strings in the exact same order as the input.\nExample: { "translations": ["translated string 1", "translated string 2"] }\n- Do NOT wrap in Markdown code blocks.\n- Do NOT include any {{__ctx__:...}} markers in your output.`;
 
   // Add exclusions if provided
   if (excludedTerms && excludedTerms.length > 0) {
