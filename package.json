@@ -134,7 +134,7 @@
   "dependencies": {
     "ioredis": "^5.11.1",
     "node-html-parser": "^7.1.0",
-    "openai": "^6.49.0"
+    "openai": "^7.10.0"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
