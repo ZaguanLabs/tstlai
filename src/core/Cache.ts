@@ -1,31 +1,65 @@
 import { TranslationCache } from '../types';
 
+/** Bounded LRU cache. Reading refreshes recency, never the expiry time. */
 export class InMemoryCache implements TranslationCache {
-  private cache: Map<string, string>;
-  private ttl: number;
-  private timestamps: Map<string, number>;
+  private entries = new Map<string, { value: string; expiresAt: number }>();
+  private timer?: ReturnType<typeof setInterval>;
+  private closed = false;
 
-  constructor(ttl: number = 3600) {
-    this.cache = new Map();
-    this.timestamps = new Map();
-    this.ttl = ttl * 1000; // Convert to ms
+  constructor(
+    private ttl = 3600,
+    private maxEntries = 10000,
+  ) {
+    if (!Number.isFinite(ttl) || ttl < 0) throw new Error('Invalid cache.ttl');
+    if (!Number.isSafeInteger(maxEntries) || maxEntries < 1)
+      throw new Error('Invalid cache.maxEntries');
+    if (ttl > 0) {
+      this.timer = setInterval(() => this.prune(), Math.max(1, Math.min(ttl * 1000, 60000)));
+      this.timer.unref?.();
+    }
   }
 
-  async get(hash: string): Promise<string | null> {
-    const timestamp = this.timestamps.get(hash);
-    if (!timestamp) return null;
+  private prune(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.entries) {
+      if (entry.expiresAt <= now) this.entries.delete(key);
+    }
+  }
 
-    if (Date.now() - timestamp > this.ttl) {
-      this.cache.delete(hash);
-      this.timestamps.delete(hash);
+  async get(key: string): Promise<string | null> {
+    const entry = this.entries.get(key);
+    if (!entry) return null;
+    if (entry.expiresAt <= Date.now()) {
+      this.entries.delete(key);
       return null;
     }
-
-    return this.cache.get(hash) || null;
+    this.entries.delete(key);
+    this.entries.set(key, entry);
+    return entry.value;
   }
 
-  async set(hash: string, translation: string): Promise<void> {
-    this.cache.set(hash, translation);
-    this.timestamps.set(hash, Date.now());
+  async set(key: string, value: string): Promise<void> {
+    if (this.closed) return;
+    this.entries.delete(key);
+    while (this.entries.size >= this.maxEntries)
+      this.entries.delete(this.entries.keys().next().value!);
+    this.entries.set(key, {
+      value,
+      expiresAt: this.ttl === 0 ? Infinity : Date.now() + this.ttl * 1000,
+    });
+  }
+
+  getMany(keys: string[]): Promise<(string | null)[]> {
+    return Promise.all(keys.map((key) => this.get(key)));
+  }
+
+  async setMany(entries: [string, string][]): Promise<void> {
+    await Promise.all(entries.map(([key, value]) => this.set(key, value)));
+  }
+
+  disconnect(): void {
+    this.closed = true;
+    clearInterval(this.timer);
+    this.entries.clear();
   }
 }

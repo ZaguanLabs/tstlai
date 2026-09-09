@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Configurable batch size, character budget, concurrency, and automatic text batching delay.
+- Shared progressive `translateBatchStream`, request cancellation, and idempotent translator shutdown.
+- Bounded LRU memory cache, bulk cache operations, and Redis command timeouts.
+
+- Explicit batch/page outcome metadata, a failure observer, and opt-in strict error handling while preserving source-content fallback by default.
+- Browser request chunking and bounded AutoTranslate retries, with configurable limits and error reporting.
+- Regression coverage for the core pipeline, React components, HTTP/SSE transport, framework adapters, and CLI.
+
+### Fixed
+
+- Context-sensitive and configuration-scoped cache identities; old cache entries are left untouched in their previous namespace.
+- Ukrainian, Nynorsk, regional/script locale normalization, source-locale bypass, and Arabic RTL handling.
+- Browser language switching, immutable nested message updates, character-data observation, request cleanup, empty exclusion attributes, and incomplete/error response handling.
+- Stream parsing targets the translation array; integrations validate full streams before caching and preserve progressive rendering.
+- HTML whitespace preservation, Express binary and UTF-8 response handling, and Astro/Remix fallback bodies and response headers.
+- next-intl adapters preserve message arrays, non-string values, and independent progressive snapshots.
+- CLI language failures produce a nonzero exit status, retain successful outputs, and preserve existing files through atomic writes.
+
+### Changed
+
+- Batch, streaming, Next/next-intl, and CLI translation share one cache and provider scheduler; overlapping requests reuse in-flight work.
+- Next streaming responses follow downstream pulls and release work on disconnect; framework request/response cancellation reaches the provider without cancelling other interested callers.
+- AutoTranslate scans only affected subtrees after DOM mutations, retaining full initial and language-change scans.
+- CLI generation deduplicates context-aware strings and runs up to two bounded batches concurrently.
+
 ## [1.2.8] - 2026-09-09
 
 ### Changed

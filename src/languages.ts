@@ -204,6 +204,13 @@ export const TIER_2_LANGUAGES: SupportedLanguage[] = [
     notes: 'Good and Reliable. Strong support for the Bokmål standard.',
   },
   {
+    code: 'nn_NO',
+    language: 'Norwegian Nynorsk',
+    region: 'Norway',
+    tier: 'good',
+    notes: 'Norwegian Nynorsk; kept distinct from Bokmål.',
+  },
+  {
     code: 'pl_PL',
     language: 'Polish',
     region: 'Poland',
@@ -380,7 +387,7 @@ export const SHORT_CODE_DEFAULTS: Record<string, string> = {
   // Tier 1 Languages
   en: 'en_US',
   gb: 'en_GB', // Great Britain -> British English
-  uk: 'en_GB', // UK (country code) -> British English (note: 'uk' also used for Ukrainian below)
+  uk: 'uk_UA', // ISO language code for Ukrainian; use gb for the country shortcut
   de: 'de_DE',
   es: 'es_ES',
   mx: 'es_MX', // Mexico -> Mexican Spanish
@@ -419,7 +426,7 @@ export const SHORT_CODE_DEFAULTS: Record<string, string> = {
   nl: 'nl_NL',
   nb: 'nb_NO',
   no: 'nb_NO', // Norwegian -> Bokmål
-  nn: 'nb_NO', // Nynorsk -> Bokmål (closest supported)
+  nn: 'nn_NO',
   pl: 'pl_PL',
   ro: 'ro_RO',
   ru: 'ru_RU',
@@ -462,17 +469,18 @@ export const SHORT_CODE_DEFAULTS: Record<string, string> = {
  * @returns Normalized locale code
  */
 export function normalizeLocaleCode(code: string): string {
-  // Convert hyphens to underscores
-  const normalized = code.replace('-', '_');
-
-  // If it's already a full locale code, return it
-  if (SUPPORTED_LOCALE_CODES.has(normalized)) {
-    return normalized;
+  const input = code.trim().replace(/_/g, '-');
+  if (!input.includes('-')) return SHORT_CODE_DEFAULTS[input.toLowerCase()] || input.toLowerCase();
+  try {
+    const canonical = Intl.getCanonicalLocales(input)[0];
+    // Resolve script-only Chinese locales without discarding explicitly requested regions.
+    if (canonical === 'zh-Hant') return 'zh_TW';
+    if (canonical === 'zh-Hans') return 'zh_CN';
+    return canonical.replace(/-/g, '_');
+  } catch {
+    // Preserve unknown inputs for callers to validate; never silently choose another language.
+    return input.replace(/-/g, '_');
   }
-
-  // Try to resolve short code
-  const shortCode = normalized.split('_')[0].toLowerCase();
-  return SHORT_CODE_DEFAULTS[shortCode] || normalized;
 }
 
 /**

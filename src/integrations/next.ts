@@ -1,5 +1,7 @@
 import * as crypto from 'crypto';
 import { Tstlai } from '../core/Tstlai';
+import { abortError } from '../core/TranslationPipeline';
+import { preserveWhitespace, stripContextMarkers } from '../core/text';
 
 /** Default limits for route handlers */
 const DEFAULT_LIMITS = {
@@ -108,14 +110,14 @@ export const createPageTranslations = async (
   // Build lookup map: source text -> translated text
   const lookup = new Map<string, string>();
   items.forEach((item) => {
-    const translated = translations.get(item.hash) || item.text;
+    const translated = translations.get(item.hash) ?? item.text;
     lookup.set(item.text, translated);
   });
 
   // Return synchronous lookup function
   return (key: string): string => {
     const trimmed = key.trim();
-    return lookup.get(trimmed) || trimmed;
+    return lookup.get(trimmed) ?? trimmed;
   };
 };
 
@@ -141,10 +143,14 @@ export const createNextRouteHandler = (translator: Tstlai, options: RouteHandler
     showSecurityWarning();
 
     try {
-      const body = await req.json();
-      const { texts, targetLang } = body;
+      const body = await req.json().catch(() => null);
+      const { texts, targetLang } = body ?? {};
 
-      if (!texts || !Array.isArray(texts)) {
+      if (
+        !Array.isArray(texts) ||
+        texts.some((text) => typeof text !== 'string') ||
+        (targetLang !== undefined && (typeof targetLang !== 'string' || !targetLang.trim()))
+      ) {
         return new Response(JSON.stringify({ error: 'Invalid request body' }), {
           status: 400,
           headers: { 'Content-Type': 'application/json' },
@@ -166,15 +172,36 @@ export const createNextRouteHandler = (translator: Tstlai, options: RouteHandler
         return { text, hash };
       });
 
-      const { translations } = await translator.translateBatch(items, targetLang);
+      const { translations, status, error } = await translator.translateBatch(items, targetLang, {
+        signal: req.signal,
+      });
 
       // Return array of translated texts in order
-      const results = items.map((item: any) => translations.get(item.hash) || item.text);
+      const results = items.map((item: any) =>
+        preserveWhitespace(
+          item.text,
+          translations.get(item.hash) ?? stripContextMarkers(item.text),
+        ),
+      );
 
-      return new Response(JSON.stringify({ translations: results }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({
+          translations: results,
+          status,
+          ...(error
+            ? {
+                error: 'Translation failed',
+                failedIndices: items.flatMap((item, index) =>
+                  translations.has(item.hash) ? [] : [index],
+                ),
+              }
+            : {}),
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
     } catch (error) {
       console.error('[Tstlai] Route Handler Error:', error);
       return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
@@ -210,10 +237,14 @@ export const createNextStreamingRouteHandler = (
     showSecurityWarning();
 
     try {
-      const body = await req.json();
-      const { texts, targetLang } = body;
+      const body = await req.json().catch(() => null);
+      const { texts, targetLang } = body ?? {};
 
-      if (!texts || !Array.isArray(texts)) {
+      if (
+        !Array.isArray(texts) ||
+        texts.some((text) => typeof text !== 'string') ||
+        (targetLang !== undefined && (typeof targetLang !== 'string' || !targetLang.trim()))
+      ) {
         return new Response(JSON.stringify({ error: 'Invalid request body' }), {
           status: 400,
           headers: { 'Content-Type': 'application/json' },
@@ -232,93 +263,107 @@ export const createNextStreamingRouteHandler = (
       // Check if provider supports streaming
       const provider = translator.getProvider();
       const supportsStreaming =
-        (provider.supportsStreaming && provider.supportsStreaming()) ||
-        typeof provider.translateStream === 'function';
+        typeof provider.translateStream === 'function' && (provider.supportsStreaming?.() ?? true);
 
-      if (!supportsStreaming) {
+      if (!supportsStreaming || translator.isSourceLang(targetLang)) {
         // Fallback to batch mode
         const items = texts.map((text: string) => {
           const hash = crypto.createHash('sha256').update(text.trim()).digest('hex');
           return { text, hash };
         });
 
-        const { translations } = await translator.translateBatch(items, targetLang);
-        const results = items.map((item) => translations.get(item.hash) || item.text);
-
-        return new Response(JSON.stringify({ translations: results }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
+        const { translations, status, error } = await translator.translateBatch(items, targetLang, {
+          signal: req.signal,
         });
+        const results = items.map((item) =>
+          preserveWhitespace(
+            item.text,
+            translations.get(item.hash) ?? stripContextMarkers(item.text),
+          ),
+        );
+
+        return new Response(
+          JSON.stringify({
+            translations: results,
+            status,
+            ...(error
+              ? {
+                  error: 'Translation failed',
+                  failedIndices: items.flatMap((item, index) =>
+                    translations.has(item.hash) ? [] : [index],
+                  ),
+                }
+              : {}),
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
       }
 
-      // Build items with hashes and check cache
-      const items = texts.map((text: string, index: number) => ({
-        text: text.trim(),
+      const items = texts.map((text: string) => ({
+        text,
         hash: crypto.createHash('sha256').update(text.trim()).digest('hex'),
-        index,
       }));
-
-      // Stream translations as SSE
       const encoder = new TextEncoder();
-      const resolvedTargetLang = targetLang || translator.getTargetLang();
-
-      const stream = new ReadableStream({
-        async start(controller) {
+      const cancellation = new AbortController();
+      const iterator = translator.translateBatchStream(items, targetLang, {
+        signal: cancellation.signal,
+      });
+      let finished = false;
+      let streamController: ReadableStreamDefaultController<Uint8Array>;
+      const cleanup = () => req.signal.removeEventListener('abort', abort);
+      const abort = () => {
+        if (finished) return;
+        finished = true;
+        cancellation.abort();
+        cleanup();
+        streamController.error(abortError());
+        void iterator.return(undefined).catch(() => {});
+      };
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          streamController = controller;
+          req.signal.addEventListener('abort', abort, { once: true });
+          if (req.signal.aborted) abort();
+        },
+        async pull(controller) {
+          if (finished) return;
           try {
-            // First, check cache and send cached translations immediately
-            const cacheMisses: typeof items = [];
-
-            for (const item of items) {
-              const cached = await translator.getCachedTranslation(item.hash, resolvedTargetLang);
-              if (cached) {
-                // Send cached translation immediately
-                const data = JSON.stringify({ index: item.index, translation: cached });
-                controller.enqueue(encoder.encode(`data: ${data}\n\n`));
-              } else {
-                cacheMisses.push(item);
-              }
-            }
-
-            // If all were cached, we're done
-            if (cacheMisses.length === 0) {
+            const result = await iterator.next();
+            if (finished) return;
+            if (result.done) {
+              finished = true;
+              cleanup();
               controller.enqueue(encoder.encode('data: [DONE]\n\n'));
               controller.close();
-              return;
+            } else {
+              const { index, translation } = result.value;
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    index,
+                    translation: preserveWhitespace(items[index].text, translation),
+                  })}\n\n`,
+                ),
+              );
             }
-
-            // Stream translations for cache misses
-            const textsToTranslate = cacheMisses.map((item) => item.text);
-            const streamGenerator = provider.translateStream!(
-              textsToTranslate,
-              resolvedTargetLang,
-              translator.getExcludedTerms(),
-              translator.getContext(),
-              translator.getGlossary(),
-              translator.getStyle(),
-            );
-
-            for await (const { index: streamIndex, translation } of streamGenerator) {
-              const item = cacheMisses[streamIndex];
-              if (item) {
-                // Cache the translation
-                await translator.cacheTranslation(item.hash, translation, resolvedTargetLang);
-
-                // Send SSE event with original index
-                const data = JSON.stringify({ index: item.index, translation });
-                controller.enqueue(encoder.encode(`data: ${data}\n\n`));
-              }
-            }
-
-            // Signal completion
-            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-            controller.close();
-          } catch (error) {
-            console.error('[Tstlai] Streaming Error:', error);
+          } catch {
+            if (finished) return;
+            finished = true;
+            cleanup();
             controller.enqueue(
               encoder.encode(`data: ${JSON.stringify({ error: 'Translation failed' })}\n\n`),
             );
             controller.close();
           }
+        },
+        async cancel() {
+          finished = true;
+          cancellation.abort();
+          cleanup();
+          await iterator.return(undefined);
         },
       });
 

@@ -1,4 +1,5 @@
 import { Tstlai } from '../core/Tstlai';
+import { translatedHeaders } from './response-headers';
 
 export const createRemixHandler = (
   translator: Tstlai,
@@ -14,21 +15,26 @@ export const createRemixHandler = (
     }
 
     const contentType = response.headers.get('Content-Type');
-    if (contentType && contentType.includes('text/html')) {
+    if (
+      contentType &&
+      contentType.includes('text/html') &&
+      !response.headers.has('content-encoding') &&
+      response.body
+    ) {
       try {
         // Clone response to read body
         const clone = response.clone();
         const body = await clone.text();
 
-        const result = await translator.process(body);
+        const result = await translator.process(body, { signal: args[0]?.signal });
 
         return new Response(result.html, {
           status: response.status,
           statusText: response.statusText,
-          headers: response.headers,
+          headers: translatedHeaders(response.headers),
         });
       } catch (err) {
-        console.error('[Tstlai] Remix Handler Error:', err);
+        if (!args[0]?.signal?.aborted) console.error('[Tstlai] Remix Handler Error:', err);
         return response;
       }
     }

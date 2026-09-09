@@ -1,7 +1,8 @@
 import { OpenAI } from 'openai';
 import { BaseAIProvider } from './BaseAIProvider';
+import { TranslationStreamParser } from './TranslationStreamParser';
 import { SUPPORTED_LANGUAGES, SHORT_CODE_DEFAULTS, normalizeLocaleCode } from '../languages';
-import type { AIProviderConfig, TranslationStyle } from '../types';
+import type { AIProviderConfig, TranslationStyle, TranslationRequestOptions } from '../types';
 
 /**
  * Build a mapping of locale codes to human-readable language names.
@@ -276,8 +277,9 @@ export class OpenAIProvider extends BaseAIProvider {
     context?: string,
     glossary?: Record<string, string>,
     style?: TranslationStyle,
+    options: TranslationRequestOptions = {},
   ): Promise<string[]> {
-    const targetLangName = LANGUAGE_NAMES[targetLang] || targetLang;
+    const targetLangName = LANGUAGE_NAMES[normalizeLocaleCode(targetLang)] || targetLang;
     const systemPrompt = buildSystemPrompt(
       targetLang,
       targetLangName,
@@ -290,6 +292,7 @@ export class OpenAIProvider extends BaseAIProvider {
     const makeRequest = async () => {
       const response = await this.client.chat.completions.create(
         this.buildRequest(texts, systemPrompt),
+        { signal: options.signal },
       );
 
       if (!response) {
@@ -319,7 +322,7 @@ export class OpenAIProvider extends BaseAIProvider {
               firstError.message.includes('ECONNRESET') ||
               firstError.message.includes('socket hang up')));
 
-        if (isStaleConnection) {
+        if (isStaleConnection && !options.signal?.aborted) {
           this.recreateClient();
           content = await makeRequest();
         } else {
@@ -329,7 +332,7 @@ export class OpenAIProvider extends BaseAIProvider {
 
       return this.parseTranslations(content, texts.length);
     } catch (error) {
-      console.error('OpenAI Translation Error:', error);
+      if (!options.signal?.aborted) console.error('OpenAI Translation Error:', error);
       throw error;
     }
   }
@@ -345,8 +348,9 @@ export class OpenAIProvider extends BaseAIProvider {
     context?: string,
     glossary?: Record<string, string>,
     style?: TranslationStyle,
+    options: TranslationRequestOptions = {},
   ): AsyncGenerator<{ index: number; translation: string }> {
-    const targetLangName = LANGUAGE_NAMES[targetLang] || targetLang;
+    const targetLangName = LANGUAGE_NAMES[normalizeLocaleCode(targetLang)] || targetLang;
     const systemPrompt = buildSystemPrompt(
       targetLang,
       targetLangName,
@@ -357,145 +361,34 @@ export class OpenAIProvider extends BaseAIProvider {
     );
 
     try {
-      const stream = await this.client.chat.completions.create({
-        ...this.buildRequest(texts, systemPrompt),
-        stream: true,
-      });
+      const stream = await this.client.chat.completions.create(
+        {
+          ...this.buildRequest(texts, systemPrompt),
+          stream: true,
+        },
+        { signal: options.signal },
+      );
 
-      // Incremental JSON array parser state
-      // Response format: { "translations": ["str1", "str2", ...] }
-      let buffer = '';
+      const parser = new TranslationStreamParser(texts.length);
       let fullContent = '';
-      let inTranslationsArray = false;
-      let inString = false;
-      let escapeNext = false;
-      let arrayDepth = 0; // Depth within the translations array
-      let currentElement = '';
-      let elementIndex = 0;
-
       for await (const chunk of stream) {
         this.checkFinishReason(chunk.choices?.[0]?.finish_reason);
         const content = chunk.choices?.[0]?.delta?.content || '';
         fullContent += content;
-        buffer += content;
-
-        // Process buffer character by character
-        while (buffer.length > 0) {
-          const char = buffer[0];
-          buffer = buffer.slice(1);
-
-          // Handle escape sequences inside strings
-          if (escapeNext) {
-            if (inString) currentElement += char;
-            escapeNext = false;
-            continue;
-          }
-
-          if (char === '\\' && inString) {
-            currentElement += char;
-            escapeNext = true;
-            continue;
-          }
-
-          // Handle string boundaries
-          if (char === '"') {
-            if (inString) {
-              // End of string
-              currentElement += char;
-              inString = false;
-
-              // If we're at depth 1 in the translations array, this completes an element
-              if (inTranslationsArray && arrayDepth === 1) {
-                try {
-                  const translation = JSON.parse(currentElement);
-                  if (typeof translation === 'string' && elementIndex < texts.length) {
-                    yield { index: elementIndex, translation };
-                    elementIndex++;
-                  }
-                } catch {
-                  // Incomplete or invalid JSON, continue accumulating
-                }
-                currentElement = '';
-              } else {
-                // Clear currentElement for strings outside the translations array (e.g., the "translations" key)
-                currentElement = '';
-              }
-            } else {
-              // Start of string
-              inString = true;
-              currentElement += char;
-            }
-            continue;
-          }
-
-          // Inside a string, accumulate everything
-          if (inString) {
-            currentElement += char;
-            continue;
-          }
-
-          // Track array depth - we're looking for the translations array
-          if (char === '[') {
-            if (!inTranslationsArray) {
-              // This is the start of the translations array
-              inTranslationsArray = true;
-              arrayDepth = 1;
-            } else {
-              // Nested array inside a translation (rare but possible)
-              arrayDepth++;
-              currentElement += char;
-            }
-            continue;
-          }
-
-          if (char === ']') {
-            if (inTranslationsArray) {
-              arrayDepth--;
-              if (arrayDepth === 0) {
-                inTranslationsArray = false;
-              } else if (arrayDepth > 0) {
-                currentElement += char;
-              }
-            }
-            continue;
-          }
-
-          // Track nested objects inside array elements
-          if (char === '{') {
-            if (inTranslationsArray && arrayDepth >= 1) {
-              currentElement += char;
-            }
-            continue;
-          }
-
-          if (char === '}') {
-            if (inTranslationsArray && arrayDepth >= 1 && currentElement.length > 0) {
-              currentElement += char;
-            }
-            continue;
-          }
-
-          // Commas separate array elements at depth 1
-          if (char === ',' && inTranslationsArray && arrayDepth === 1) {
-            currentElement = '';
-            continue;
-          }
-
-          // Accumulate other characters if inside array element
-          if (inTranslationsArray && arrayDepth >= 1 && currentElement.length > 0) {
-            currentElement += char;
-          }
-        }
+        yield* parser.push(content);
       }
-      // An empty, malformed or truncated stream must not be reported as a successful translation.
-      this.parseTranslations(fullContent, texts.length);
-      if (elementIndex !== texts.length) {
+      const translations = this.parseTranslations(fullContent, texts.length);
+      // Legacy object envelopes are validated in full before being emitted. Named
+      // translations and root arrays still arrive progressively as strings complete.
+      if (parser.emittedCount === 0) {
+        for (const [index, translation] of translations.entries()) yield { index, translation };
+      } else if (parser.emittedCount !== texts.length) {
         throw new Error(
-          `Incomplete translation stream: expected ${texts.length} translations, received ${elementIndex}`,
+          `Incomplete translation stream: expected ${texts.length} translations, received ${parser.emittedCount}`,
         );
       }
     } catch (error) {
-      console.error('OpenAI Streaming Translation Error:', error);
+      if (!options.signal?.aborted) console.error('OpenAI Streaming Translation Error:', error);
       throw error;
     }
   }

@@ -126,6 +126,30 @@ test('decodes streamed quotes, backslashes, newlines and Unicode in order', asyn
   await expect(translate(provider(), true, ['One', 'Two', 'Three'])).resolves.toEqual(translations);
 });
 
+test('streams only translations when unrelated arrays precede them', async () => {
+  respond = completionResponse('{"notes":["Wrong"],"translations":["Hei"]}');
+  await expect(translate(provider(), true)).resolves.toEqual(['Hei']);
+});
+
+test('rejects non-string array elements before emitting them', async () => {
+  respond = completionResponse('{"translations":[{"label":"Wrong"}]}');
+  const emitted = [];
+  await expect(
+    (async () => {
+      for await (const item of provider().translateStream(['Hello'], 'nb')) emitted.push(item);
+    })(),
+  ).rejects.toThrow();
+  expect(emitted).toEqual([]);
+});
+
+test.each(['["Hei"]', '{"legacy":["Hei"]}'])(
+  'retains legacy response format %s',
+  async (content) => {
+    respond = completionResponse(content);
+    await expect(translate(provider(), true)).resolves.toEqual(['Hei']);
+  },
+);
+
 test.each([false, true])('preserves the gateway routing error (stream=%s)', async (stream) => {
   respond = (res) => {
     res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -156,3 +180,48 @@ describe.each([false, true])('response validation (stream=%s)', (stream) => {
     await expect(translate(provider(), stream)).rejects.toThrow();
   });
 });
+
+test.each([false, true])(
+  'cancellation closes the actual upstream HTTP request (stream=%s)',
+  async (streaming) => {
+    let started;
+    const ready = new Promise((resolve) => {
+      started = resolve;
+    });
+    let disconnected;
+    const closed = new Promise((resolve) => {
+      disconnected = resolve;
+    });
+    respond = (res) => {
+      res.on('close', disconnected);
+      if (streaming) {
+        res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+        res.write('data: {"choices":[{"delta":{"content":"{\\\"translations\\\":["}}]}\n\n');
+      }
+      started();
+    };
+    const controller = new AbortController();
+    const instance = provider();
+    const args = [
+      ['Hello'],
+      'nb',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { signal: controller.signal },
+    ];
+    const work = (async () => {
+      if (streaming) {
+        for await (const _item of instance.translateStream(...args)) {
+        }
+      } else await instance.translate(...args);
+    })().catch((error) => error);
+    await ready;
+    controller.abort();
+    expect(await work).toBeInstanceOf(Error);
+    await closed;
+    expect(requests).toHaveLength(1);
+    expect(consoleError).not.toHaveBeenCalled();
+  },
+);

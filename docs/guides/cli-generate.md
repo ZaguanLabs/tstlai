@@ -9,6 +9,13 @@ The `tstlai generate` command creates translation files from a source JSON file.
 
 ## Quick Start
 
+The command exits with a nonzero status if any requested language fails, while
+keeping successfully generated language files. Existing files for failed
+languages remain untouched. Successful files are replaced atomically, and the
+command refuses to overwrite its source JSON file. The programmatic
+`generateTranslations()` API rejects with `TranslationGenerationError`, whose
+`completed` and `failures` properties describe the partial result.
+
 ```bash
 # Set your API key
 export OPENAI_API_KEY=sk-...
@@ -330,3 +337,16 @@ The CLI shows estimated token usage in dry-run mode. Actual costs depend on your
 3. **Exclude brands** - Keep product names consistent
 4. **Review Tier 3 languages** - Functional languages may need human review
 5. **Version control** - Commit translations alongside source
+
+## Batching and cleanup
+
+Generation uses the same scheduler as runtime translation, with batches of up to
+50 unique strings and at most two provider calls in parallel. The character
+budget is 100000 per batch; a longer individual string travels alone. Repeated
+strings with identical context share work, while different context hints remain
+distinct. Progress counts original message entries even when work is deduplicated.
+The generation instance closes and releases its memory cache when it finishes.
+
+Programmatic `generateTranslations` calls accept an optional `signal` for
+cancellation. Cancellation rejects immediately and retains files already completed;
+it does not write a partially translated language file.

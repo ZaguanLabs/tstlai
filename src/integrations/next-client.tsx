@@ -9,6 +9,9 @@ import {
   Suspense,
   type ReactNode,
 } from 'react';
+import { requestTranslations, type ClientRequestLimits } from './client-transport';
+import { normalizeLocaleCode } from '../languages';
+import { stripContextMarkers } from '../core/text';
 
 interface TranslationStatus {
   isTranslating: boolean;
@@ -307,10 +310,28 @@ function setNestedValue(obj: Record<string, any>, path: string, value: any): voi
   const parts = path.split('.');
   let current = obj;
   for (let i = 0; i < parts.length - 1; i++) {
-    if (!current[parts[i]]) current[parts[i]] = {};
-    current = current[parts[i]];
+    const key = parts[i];
+    const child = Object.prototype.hasOwnProperty.call(current, key) ? current[key] : undefined;
+    const copy = Array.isArray(child)
+      ? [...child]
+      : child && typeof child === 'object'
+        ? { ...child }
+        : {};
+    Object.defineProperty(current, key, {
+      value: copy,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
+    current = current[key];
   }
-  current[parts[parts.length - 1]] = value;
+  const key = parts[parts.length - 1];
+  Object.defineProperty(current, key, {
+    value,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
 }
 
 // Helper to flatten object to dot notation
@@ -327,7 +348,7 @@ function flattenMessages(obj: any, prefix = ''): Array<{ key: string; text: stri
   return result;
 }
 
-export interface TstlaiStreamingProviderProps {
+export interface TstlaiStreamingProviderProps extends ClientRequestLimits {
   children: ReactNode;
   locale: string;
   sourceLocale?: string;
@@ -371,151 +392,99 @@ export const TstlaiStreamingProvider = ({
   sourceMessages,
   streamEndpoint = '/api/tstlai/stream',
   streamBuffer = 500,
+  maxTexts = 100,
+  maxTotalChars = 100000,
 }: TstlaiStreamingProviderProps) => {
   const [messages, setMessages] = useState<Record<string, any>>(sourceMessages);
   const [status, setStatusState] = useState<TranslationStatus>({
-    isTranslating: locale !== sourceLocale,
-    progress: locale === sourceLocale ? 100 : 0,
+    isTranslating: normalizeLocaleCode(locale) !== normalizeLocaleCode(sourceLocale),
+    progress: normalizeLocaleCode(locale) === normalizeLocaleCode(sourceLocale) ? 100 : 0,
     error: null,
   });
-
   const setStatus = useCallback((partial: Partial<TranslationStatus>) => {
     setStatusState((prev) => ({ ...prev, ...partial }));
   }, []);
 
   useEffect(() => {
-    // Skip if source locale
-    if (locale === sourceLocale) return;
-
-    let cancelled = false;
+    const abort = new AbortController();
     const flatMessages = flattenMessages(sourceMessages);
-    const totalCount = flatMessages.length;
-    let translatedCount = 0;
+    const total = flatMessages.length;
+    const isSource = normalizeLocaleCode(locale) === normalizeLocaleCode(sourceLocale);
+    setMessages(sourceMessages);
+    setStatus({
+      isTranslating: !isSource && total > 0,
+      progress: isSource || total === 0 ? 100 : 0,
+      error: null,
+    });
+    if (isSource || !total) return () => abort.abort();
 
-    const streamTranslations = async () => {
-      try {
-        const response = await fetch(streamEndpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            texts: flatMessages.map((m) => m.text),
-            targetLang: locale,
-          }),
+    let firstUpdate = false;
+    let completed = 0;
+    const pending = new Map<number, string>();
+    const apply = () => {
+      if (abort.signal.aborted) return;
+      // React may evaluate the updater later. Capture an immutable batch before clearing it.
+      const updates = [...pending];
+      pending.clear();
+      if (updates.length) {
+        setMessages((previous) => {
+          const next = { ...previous };
+          for (const [index, text] of updates) setNestedValue(next, flatMessages[index].key, text);
+          return next;
         });
-
-        const contentType = response.headers.get('content-type');
-
-        // Handle non-streaming fallback
-        if (!contentType?.includes('text/event-stream')) {
-          const data = await response.json();
-          if (cancelled) return;
-
-          const newMessages = { ...sourceMessages };
-          flatMessages.forEach((item, index) => {
-            if (data.translations?.[index]) {
-              setNestedValue(newMessages, item.key, data.translations[index]);
-            }
-          });
-          setMessages(newMessages);
-          setStatus({ isTranslating: false, progress: 100 });
-          return;
-        }
-
-        // Stream translations
-        const reader = response.body?.getReader();
-        if (!reader) return;
-
-        const decoder = new TextDecoder();
-        let buffer = '';
-        const pendingUpdates: Map<number, string> = new Map();
-        let bufferTimeout: NodeJS.Timeout | null = null;
-        let firstUpdateSent = false;
-
-        const applyPendingUpdates = () => {
-          if (cancelled) return;
-
-          setMessages((prev) => {
-            const newMessages = { ...prev };
-            pendingUpdates.forEach((translation, index) => {
-              const item = flatMessages[index];
-              if (item) {
-                setNestedValue(newMessages, item.key, translation);
-              }
-            });
-            return newMessages;
-          });
-
-          translatedCount += pendingUpdates.size;
-          const progress = Math.round((translatedCount / totalCount) * 100);
-          setStatus({ isTranslating: progress < 100, progress });
-
-          pendingUpdates.clear();
-          firstUpdateSent = true;
-        };
-
-        // Start buffer timer
-        bufferTimeout = setTimeout(applyPendingUpdates, streamBuffer);
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done || cancelled) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') continue;
-
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.index !== undefined && parsed.translation) {
-                  if (firstUpdateSent) {
-                    // After buffer, apply immediately
-                    setMessages((prev) => {
-                      const newMessages = { ...prev };
-                      const item = flatMessages[parsed.index];
-                      if (item) {
-                        setNestedValue(newMessages, item.key, parsed.translation);
-                      }
-                      return newMessages;
-                    });
-                    translatedCount++;
-                    const progress = Math.round((translatedCount / totalCount) * 100);
-                    setStatus({ isTranslating: progress < 100, progress });
-                  } else {
-                    pendingUpdates.set(parsed.index, parsed.translation);
-                  }
-                }
-              } catch {
-                // Ignore parse errors
-              }
-            }
-          }
-        }
-
-        // Apply remaining buffered updates
-        if (bufferTimeout) clearTimeout(bufferTimeout);
-        if (!cancelled) {
-          applyPendingUpdates();
-          setStatus({ isTranslating: false, progress: 100 });
-        }
-      } catch (err) {
-        if (!cancelled) {
-          const error = err instanceof Error ? err : new Error(String(err));
-          setStatus({ isTranslating: false, progress: 0, error });
-        }
       }
+      firstUpdate = true;
     };
-
-    streamTranslations();
-
+    const timer = setTimeout(apply, streamBuffer);
+    void (async () => {
+      try {
+        await requestTranslations({
+          endpoint: streamEndpoint,
+          texts: flatMessages.map((item) => item.text),
+          targetLang: locale,
+          signal: abort.signal,
+          maxTexts,
+          maxTotalChars,
+          onTranslation(index, translation) {
+            pending.set(index, stripContextMarkers(translation));
+            completed++;
+            if (firstUpdate) apply();
+            // Completion is confirmed only when the transport receives a valid terminal event.
+            setStatus({
+              isTranslating: true,
+              progress: Math.min(99, Math.round((completed / total) * 100)),
+            });
+          },
+        });
+        apply();
+        setStatus({ isTranslating: false, progress: 100, error: null });
+      } catch (error) {
+        if (!abort.signal.aborted) {
+          apply();
+          setStatus({
+            isTranslating: false,
+            progress: Math.min(99, Math.round((completed / total) * 100)),
+            error: error instanceof Error ? error : new Error(String(error)),
+          });
+        }
+      } finally {
+        clearTimeout(timer);
+      }
+    })();
     return () => {
-      cancelled = true;
+      abort.abort();
+      clearTimeout(timer);
     };
-  }, [locale, sourceLocale, sourceMessages, streamEndpoint, streamBuffer]);
+  }, [
+    locale,
+    sourceLocale,
+    sourceMessages,
+    streamEndpoint,
+    streamBuffer,
+    maxTexts,
+    maxTotalChars,
+    setStatus,
+  ]);
 
   return (
     <TstlaiContext.Provider value={{ locale, messages, status, setStatus }}>

@@ -5,6 +5,11 @@ export type {
   AIProvider,
   AIProviderConfig,
   CacheConfig,
+  TranslationBatchResult,
+  BatchingConfig,
+  TranslationRequestOptions,
+  TranslationStreamResult,
+  TranslationCache,
 } from './types';
 export * as integrations from './integrations';
 

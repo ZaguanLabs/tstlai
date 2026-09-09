@@ -1,4 +1,6 @@
+import { responseCancellation } from './response-cancellation';
 import { Tstlai } from '../core/Tstlai';
+import { TRANSFORMED_HEADERS } from './response-headers';
 
 export const createFastifyPlugin = (translator: Tstlai) => {
   return async (fastify: any) => {
@@ -9,14 +11,19 @@ export const createFastifyPlugin = (translator: Tstlai) => {
       if (
         contentType &&
         (contentType as string).includes('text/html') &&
-        typeof payload === 'string'
+        typeof payload === 'string' &&
+        !reply.getHeader('content-encoding')
       ) {
+        const cancellation = responseCancellation(reply.raw);
         try {
-          const result = await translator.process(payload);
+          const result = await translator.process(payload, { signal: cancellation.signal });
+          for (const name of TRANSFORMED_HEADERS) reply.removeHeader(name);
           return result.html;
         } catch (err) {
-          console.error('[Tstlai] Fastify Plugin Error:', err);
+          if (!cancellation.signal.aborted) console.error('[Tstlai] Fastify Plugin Error:', err);
           return payload;
+        } finally {
+          cancellation.dispose();
         }
       }
       return payload;

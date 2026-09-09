@@ -3,55 +3,64 @@ import { TranslationCache } from '../types';
 
 export class RedisCache implements TranslationCache {
   private redis: Redis;
-  private ttl: number;
 
-  constructor(connectionString?: string, ttl: number = 3600, keyPrefix: string = 'tstlai:') {
-    this.ttl = ttl;
-
+  constructor(
+    connectionString?: string,
+    private ttl = 3600,
+    keyPrefix = 'tstlai:',
+    commandTimeout = 1000,
+  ) {
+    if (!Number.isSafeInteger(ttl) || ttl < 0) throw new Error('Invalid cache.ttl');
+    if (!Number.isSafeInteger(commandTimeout) || commandTimeout < 1)
+      throw new Error('Invalid cache.commandTimeout');
     const url = connectionString || process.env.REDIS_URL;
     const options = {
-      keyPrefix: keyPrefix,
+      keyPrefix,
+      commandTimeout,
+      connectTimeout: commandTimeout,
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 1,
     };
-
-    if (url) {
-      this.redis = new Redis(url, options);
-    } else {
-      // Defaults to localhost:6379
-      this.redis = new Redis(options);
-    }
-
-    this.redis.on('error', (err) => {
-      console.error('[RedisCache] Error:', err);
-    });
-
-    this.redis.on('connect', () => {
-      // Optional: console.log('[RedisCache] Connected');
-    });
+    this.redis = url ? new Redis(url, options) : new Redis(options);
+    this.redis.on('error', (err) => console.error('[RedisCache] Error:', err));
   }
 
-  async get(hash: string): Promise<string | null> {
+  async get(key: string): Promise<string | null> {
+    return (await this.getMany([key]))[0];
+  }
+
+  async getMany(keys: string[]): Promise<(string | null)[]> {
+    if (!keys.length) return [];
     try {
-      return await this.redis.get(hash);
+      return await this.redis.mget(...keys);
     } catch (error) {
       console.error('[RedisCache] Get Error:', error);
-      return null;
+      return keys.map(() => null);
     }
   }
 
-  async set(hash: string, translation: string): Promise<void> {
+  async set(key: string, value: string): Promise<void> {
+    await this.setMany([[key, value]]);
+  }
+
+  async setMany(entries: [string, string][]): Promise<void> {
+    if (!entries.length) return;
     try {
-      if (this.ttl > 0) {
-        await this.redis.set(hash, translation, 'EX', this.ttl);
-      } else {
-        await this.redis.set(hash, translation);
+      const pipeline = this.redis.pipeline();
+      for (const [key, value] of entries) {
+        if (this.ttl > 0) pipeline.set(key, value, 'EX', this.ttl);
+        else pipeline.set(key, value);
       }
+      const results = await pipeline.exec();
+      const failure = results?.find(([error]) => error)?.[0];
+      if (failure) throw failure;
     } catch (error) {
       console.error('[RedisCache] Set Error:', error);
     }
   }
 
-  // Helper to close connection if needed
   async disconnect(): Promise<void> {
-    await this.redis.quit();
+    // Disconnect immediately: shutdown must not wait for an unavailable Redis server.
+    this.redis.disconnect();
   }
 }

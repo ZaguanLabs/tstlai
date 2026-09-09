@@ -11,10 +11,17 @@ const translator = new Tstlai({
   // ...
   cache: {
     type: 'memory',
-    ttl: 3600, // 1 hour
+    ttl: 3600, // 1 hour; 0 disables expiry
+    maxEntries: 10000, // Maximum number of entries, not a byte limit
   },
 });
 ```
+
+Memory storage evicts the least recently used entry when full. Reads refresh
+recency without extending the TTL, empty strings are valid hits, and expired
+entries are pruned periodically even when they are never read again. The cleanup
+timer does not keep a Node process alive. Call `translator.close()` at shutdown to
+clear its timer and storage.
 
 ## Redis Cache (Recommended)
 
@@ -35,22 +42,50 @@ const translator = new Tstlai({
 
     // Namespace (optional)
     keyPrefix: 'tstlai:',
+    commandTimeout: 1000, // Milliseconds; also bounds connection attempts
   },
 });
 ```
+
+Cache lookups use one `MGET` per scheduled batch. Writes use pipelined `SET`
+commands with the configured TTL (`0` means no expiry). Redis errors and timeouts
+are logged and treated as cache misses or skipped writes, so translation remains
+available. Commands are not queued while Redis is disconnected; initial requests
+may translate while the connection is still opening. This uses ioredis's
+[command timeout and offline queue controls](https://github.com/redis/ioredis).
+
+Custom caches implementing only `get` and `set` remain supported, with at most 16
+parallel operations per scheduled batch. Optional `getMany`, `setMany`, and
+`disconnect` methods enable bulk access and resource cleanup. `getMany` returns
+one value or `null` per input key in the same order.
 
 ### Key Structure
 
 tstlai uses a **Composite Key** strategy to support multiple languages safely.
 
-Format: `{keyPrefix}{contentHash}:{targetLangCode}`
+Format: `{keyPrefix}v2:{configurationHash}:{contentHash}:{normalizedTargetLocale}`
 
 Example for "Hello" (SHA-256 hash `185f...`):
 
-- **Spanish**: `tstlai:185f...:es` -> "Hola"
-- **French**: `tstlai:185f...:fr` -> "Bonjour"
+- **Spanish**: `tstlai:v2:config...:185f...:es_ES` -> "Hola"
+- **French**: `tstlai:v2:config...:185f...:fr_FR` -> "Bonjour"
 
-This ensures that translations never collide between languages.
+The configuration hash covers the source locale, model, gateway base URL,
+translation context, glossary, style, excluded terms, temperature, and reasoning
+effort. Per-string context hints also participate in the content hash used by
+`translateText()`. Surrounding whitespace is restored separately when rendering.
+
+**Migration:** Existing entries using the old key format are left untouched and
+are not reused. The first requests after upgrading will translate and populate
+the new namespace; old entries expire according to their existing TTL. Use
+`cacheTranslation()` and `getCachedTranslation()` rather than constructing keys
+manually, and keep a separate `keyPrefix` per application or tenant.
+
+Streaming integrations display valid string elements progressively but commit
+new entries only after successfully consuming and validating the entire provider
+response for that provider batch. Earlier completed batches can remain cached if a
+later batch fails; provisional strings from the failing batch are never persisted.
+Batch and streaming callers use this same validation and cache path.
 
 ### Multi-Tenancy (Multiple Apps on One Redis)
 

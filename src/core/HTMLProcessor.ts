@@ -1,5 +1,6 @@
 import { parse, HTMLElement, Node } from 'node-html-parser';
 import * as crypto from 'crypto';
+import { preserveWhitespace } from './text';
 
 export interface TextNodeRef {
   id: string;
@@ -45,9 +46,7 @@ export class HTMLProcessor {
 
           textNodes.push({
             id: Math.random().toString(36).substring(7),
-            text: node.text, // Keep original text including whitespace for restoration if needed? No, we replace content.
-            // Actually, we want to translate the trimmed text but preserve whitespace logic if possible.
-            // For MVP, we'll just replace the text content.
+            text: node.text, // Preserve each node's surrounding whitespace when applying translations.
             hash,
             node,
           });
@@ -65,8 +64,8 @@ export class HTMLProcessor {
   applyTranslations(textNodes: TextNodeRef[], translations: Map<string, string>): void {
     textNodes.forEach((ref) => {
       const translatedText = translations.get(ref.hash);
-      if (translatedText) {
-        ref.node.textContent = translatedText;
+      if (translatedText !== undefined) {
+        ref.node.textContent = preserveWhitespace(ref.text, translatedText);
       }
     });
   }

@@ -9,6 +9,7 @@ export interface TranslationConfig {
   sourceLang?: string; // Source language (default: 'en'). When targetLang === sourceLang, translation is bypassed.
   provider: AIProviderConfig;
   cache?: CacheConfig;
+  batching?: BatchingConfig;
   excludedTerms?: string[]; // Words/Phrases to never translate
   translationContext?: string; // High-level context (e.g. "Marketing site for B2B SaaS")
   /**
@@ -23,6 +24,42 @@ export interface TranslationConfig {
    * Default: 'neutral'
    */
   style?: TranslationStyle;
+  /** Preserve source content on failure (default), or reject the operation. */
+  errorMode?: 'fallback' | 'throw';
+  /** Observe provider failures even when source-content fallback is enabled. */
+  onError?: (error: Error) => void;
+}
+
+export interface BatchingConfig {
+  /** Maximum unique strings per provider request (default 100). */
+  maxTexts?: number;
+  /** Target character budget per request (default 100000); oversized strings travel alone. */
+  maxTotalChars?: number;
+  /** Maximum simultaneous provider batches, and separately cache lookups, per translator (default 2). */
+  concurrency?: number;
+  /** Automatic translateText batching delay in milliseconds (default 50). */
+  delayMs?: number;
+}
+
+export interface TranslationRequestOptions {
+  signal?: AbortSignal;
+  /** Use batch provider calls within translateBatchStream (default: streaming when available). */
+  stream?: boolean;
+}
+
+export interface TranslationStreamResult {
+  index: number;
+  translation: string;
+  cached: boolean;
+}
+
+export interface TranslationBatchResult {
+  translations: Map<string, string>;
+  cachedCount: number;
+  translatedCount: number;
+  failedCount: number;
+  status: 'complete' | 'partial' | 'fallback';
+  error?: Error;
 }
 
 export interface AIProviderConfig {
@@ -41,7 +78,9 @@ export interface AIProviderConfig {
 
 export interface CacheConfig {
   type: 'memory' | 'redis' | 'sql';
-  ttl?: number; // Time to live in seconds
+  ttl?: number; // Time to live in seconds; zero disables expiry
+  maxEntries?: number; // Memory cache capacity (default 10000)
+  commandTimeout?: number; // Redis command timeout in milliseconds (default 1000)
   connectionString?: string; // For Redis/SQL
   keyPrefix?: string; // Optional namespace, default 'tstlai:'
 }
@@ -60,6 +99,7 @@ export interface AIProvider {
     context?: string,
     glossary?: Record<string, string>,
     style?: TranslationStyle,
+    options?: TranslationRequestOptions,
   ): Promise<string[]>;
 
   /**
@@ -73,6 +113,7 @@ export interface AIProvider {
     context?: string,
     glossary?: Record<string, string>,
     style?: TranslationStyle,
+    options?: TranslationRequestOptions,
   ): AsyncGenerator<{ index: number; translation: string }>;
 
   /** Check if this provider supports streaming */
@@ -84,6 +125,9 @@ export interface AIProvider {
 export interface TranslationCache {
   get(hash: string): Promise<string | null>;
   set(hash: string, translation: string): Promise<void>;
+  getMany?(keys: string[]): Promise<(string | null)[]>;
+  setMany?(entries: [string, string][]): Promise<void>;
+  disconnect?(): Promise<void> | void;
 }
 
 export interface ProcessedPage {
@@ -94,4 +138,6 @@ export interface ProcessedPage {
   dir: 'ltr' | 'rtl';
   /** Target language code */
   lang: string;
+  status?: TranslationBatchResult['status'];
+  failedCount?: number;
 }
