@@ -11,7 +11,13 @@ const { createNextStreamingRouteHandler } = require('../src/integrations/next');
 const { generateTranslations, TranslationGenerationError } = require('../src/cli/generate');
 
 function translator() {
-  const t = new Tstlai({ targetLang: 'nb', provider: { type: 'custom' } });
+  const t = new Tstlai({
+    targetLang: 'nb',
+    provider: {
+      translate: jest.fn(async (texts) => texts.map((text) => `NB:${text}`)),
+      getModelInfo: () => ({ name: 'test', capabilities: [] }),
+    },
+  });
   t.provider = {
     translate: jest.fn(async (texts) => texts.map((t) => `NB:${t}`)),
     translateStream: jest.fn(async function* (texts) {

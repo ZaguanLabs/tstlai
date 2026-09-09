@@ -18,7 +18,14 @@ const items = (...texts) =>
     hash: crypto.createHash('sha256').update(text.trim()).digest('hex'),
   }));
 function translator(config = {}) {
-  const t = new Tstlai({ targetLang: 'nb', provider: { type: 'custom' }, ...config });
+  const t = new Tstlai({
+    targetLang: 'nb',
+    provider: {
+      translate: jest.fn(async (texts) => texts.map((text) => `NB:${text}`)),
+      getModelInfo: () => ({ name: 'test', capabilities: [] }),
+    },
+    ...config,
+  });
   t.provider.translate = jest.fn(async (texts) => texts.map((text) => `NB:${text}`));
   instances.push(t);
   return t;

@@ -7,8 +7,8 @@ export type TranslationStyle = 'formal' | 'neutral' | 'casual' | 'marketing' | '
 export interface TranslationConfig {
   targetLang: string;
   sourceLang?: string; // Source language (default: 'en'). When targetLang === sourceLang, translation is bypassed.
-  provider: AIProviderConfig;
-  cache?: CacheConfig;
+  provider: AIProviderConfig | AIProvider;
+  cache?: CacheConfig | TranslationCache;
   batching?: BatchingConfig;
   excludedTerms?: string[]; // Words/Phrases to never translate
   translationContext?: string; // High-level context (e.g. "Marketing site for B2B SaaS")

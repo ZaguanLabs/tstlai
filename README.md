@@ -36,6 +36,18 @@ The result: your app supports any language without changing your development wor
 npm install tstlai
 ```
 
+Use Node 20 or newer; maintained Node LTS versions are recommended. React is
+optional for server usage. For explicit entry points:
+
+```typescript
+import { Tstlai, createNextRouteHandler } from 'tstlai/server';
+import { AutoTranslate, TstlaiStreamingProvider } from 'tstlai/client';
+```
+
+The root `tstlai` import and existing integration paths remain available. See
+[package entry points and maintenance](docs/guides/maintenance.md) for compatibility
+checks, custom imports, and the release workflow.
+
 ## Quick Start
 
 ```typescript
@@ -80,7 +92,7 @@ console.log(result.html); // <h1>Hola</h1>
 | Variable          | Description      | Default                     |
 | :---------------- | :--------------- | :-------------------------- |
 | `OPENAI_API_KEY`  | OpenAI API Key   | —                           |
-| `OPENAI_MODEL`    | Model ID         | `gpt-3.5-turbo`             |
+| `OPENAI_MODEL`    | Model ID         | `gpt-5.2-mini`              |
 | `OPENAI_BASE_URL` | Custom endpoint  | `https://api.openai.com/v1` |
 | `REDIS_URL`       | Redis connection | `redis://localhost:6379`    |
 

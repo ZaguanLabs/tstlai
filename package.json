@@ -35,6 +35,31 @@
     "./languages": {
       "types": "./dist/languages.d.ts",
       "default": "./dist/languages.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./express": {
+      "types": "./dist/integrations/express.d.ts",
+      "default": "./dist/integrations/express.js"
+    },
+    "./fastify": {
+      "types": "./dist/integrations/fastify.d.ts",
+      "default": "./dist/integrations/fastify.js"
+    },
+    "./astro": {
+      "types": "./dist/integrations/astro.d.ts",
+      "default": "./dist/integrations/astro.js"
+    },
+    "./remix": {
+      "types": "./dist/integrations/remix.d.ts",
+      "default": "./dist/integrations/remix.js"
+    },
+    "./package.json": "./package.json",
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "default": "./dist/core/index.js"
     }
   },
   "files": [
@@ -43,13 +68,16 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "jest --passWithNoTests",
-    "lint": "eslint 'src/**/*.{ts,tsx}'",
+    "test": "jest",
+    "lint": "eslint 'src/**/*.{ts,tsx}' --max-warnings=0",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "format": "prettier --write 'src/**/*.{ts,tsx,json,md}'",
     "check-types": "tsc --noEmit",
     "prepublishOnly": "npm run build",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:package": "npm run build && node scripts/check-package.cjs",
+    "validate": "npm run check-types && npm run lint && npm test -- --runInBand && npm run test:package",
+    "prepack": "npm run build"
   },
   "keywords": [
     "i18n",
@@ -82,34 +110,31 @@
     }
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
+    "@eslint/js": "^9.39.5",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.0.3",
-    "@types/react": "^19.2.7",
-    "@types/react-dom": "^19.2.3",
-    "@typescript-eslint/eslint-plugin": "^8.50.0",
-    "@typescript-eslint/parser": "^8.50.0",
-    "eslint": "^9.39.2",
+    "@types/node": "22.20.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.4",
     "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "husky": "^9.1.7",
-    "jest": "^30.2.0",
+    "jest": "^30.5.1",
     "jsdom": "26.1.0",
-    "lint-staged": "^16.2.7",
-    "prettier": "^3.7.4",
-    "react": "^19.2.3",
-    "react-dom": "19.2.3",
-    "ts-jest": "^29.4.6",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.9.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.50.0"
+    "typescript-eslint": "^8.70.0"
   },
   "dependencies": {
-    "ioredis": "^5.8.2",
-    "node-html-parser": "^7.0.1",
-    "openai": "^6.14.0"
+    "ioredis": "^5.11.1",
+    "node-html-parser": "^7.1.0",
+    "openai": "^6.49.0"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
@@ -119,5 +144,9 @@
     "*.{json,md}": [
       "prettier --write"
     ]
-  }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false
 }

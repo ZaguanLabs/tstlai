@@ -6,7 +6,14 @@ const {
 } = require('../src/integrations/next');
 
 function translator(config = {}) {
-  const instance = new Tstlai({ targetLang: 'nb', provider: { type: 'custom' }, ...config });
+  const instance = new Tstlai({
+    targetLang: 'nb',
+    provider: {
+      translate: jest.fn(async (texts) => texts.map((text) => `NB:${text}`)),
+      getModelInfo: () => ({ name: 'test', capabilities: [] }),
+    },
+    ...config,
+  });
   instance.provider = {
     translate: jest.fn(async (texts) => texts.map(() => 'Hei')),
     getModelInfo: () => ({ name: 'test', capabilities: [] }),

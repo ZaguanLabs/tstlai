@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- React-free core/server and individual framework entry points, with existing imports retained.
+- Public custom provider/cache injection and safe programmatic CLI exports.
+- Node/React compatibility CI, isolated npm tarball checks, dependency update automation, and release tag validation.
+
 - Configurable batch size, character budget, concurrency, and automatic text batching delay.
 - Shared progressive `translateBatchStream`, request cancellation, and idempotent translator shutdown.
 - Bounded LRU memory cache, bulk cache operations, and Redis command timeouts.
@@ -19,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Unsupported provider/cache configuration now fails clearly instead of fabricating translations or silently switching storage.
+- API keys are fully redacted in debug logs; redundant retries outside the OpenAI SDK are removed.
+
 - Context-sensitive and configuration-scoped cache identities; old cache entries are left untouched in their previous namespace.
 - Ukrainian, Nynorsk, regional/script locale normalization, source-locale bypass, and Arabic RTL handling.
 - Browser language switching, immutable nested message updates, character-data observation, request cleanup, empty exclusion attributes, and incomplete/error response handling.
@@ -28,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI language failures produce a nonzero exit status, retain successful outputs, and preserve existing files through atomic writes.
 
 ### Changed
+
+- Refresh compatible dependencies and resolve all currently reported npm audit findings; enable React hook lint rules and remove unused direct lint dependencies.
+- Publish with Node 24, provenance, and OIDC support while preserving the existing npm token fallback.
 
 - Batch, streaming, Next/next-intl, and CLI translation share one cache and provider scheduler; overlapping requests reuse in-flight work.
 - Next streaming responses follow downstream pulls and release work on disconnect; framework request/response cancellation reaches the provider without cancelling other interested callers.

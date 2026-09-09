@@ -32,3 +32,7 @@ Welcome to the tstlai documentation.
 - **No JSON files:** [Page Translations](guides/nextjs-integration.md#4-method-b-page-translations-no-json-files)
 - **Migrating from next-intl:** [JSON Adapter](guides/nextjs-integration.md#5-method-c-json-adapter-seo--next-intl-migration)
 - **Static generation:** [CLI Generate](guides/cli-generate.md) — Generate all translations at build time
+
+## Maintenance
+
+- [Package validation and releases](guides/maintenance.md) — entry points, compatibility tests, dependency updates, and npm publishing.

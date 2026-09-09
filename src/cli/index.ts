@@ -9,6 +9,8 @@
 
 import { parseArgs } from 'node:util';
 import { generateTranslations, GenerateOptions } from './generate';
+export { generateTranslations, TranslationGenerationError } from './generate';
+export type { GenerateOptions, ContextualString } from './generate';
 
 const HELP_TEXT = `
 tstlai - AI-powered translation file generator
@@ -33,7 +35,7 @@ OPTIONS:
 
 ENVIRONMENT VARIABLES:
   OPENAI_API_KEY           OpenAI API key (required)
-  OPENAI_MODEL             Model to use (default: gpt-4o-mini)
+  OPENAI_MODEL             Model to use (default: gpt-5.2-mini)
   OPENAI_BASE_URL          Custom API base URL
 
 EXAMPLES:
@@ -117,4 +119,4 @@ async function main() {
   }
 }
 
-main();
+if (require.main === module) void main();

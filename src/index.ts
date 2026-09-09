@@ -1,30 +1,14 @@
-export { Tstlai } from './core/Tstlai';
-export type {
-  TranslationConfig,
-  ProcessedPage,
-  AIProvider,
-  AIProviderConfig,
-  CacheConfig,
-  TranslationBatchResult,
-  BatchingConfig,
-  TranslationRequestOptions,
-  TranslationStreamResult,
-  TranslationCache,
-} from './types';
-export * as integrations from './integrations';
+export * from './core';
 
-// Language support
-export {
-  SUPPORTED_LANGUAGES,
-  SUPPORTED_LOCALE_CODES,
-  SHORT_CODE_DEFAULTS,
-  TIER_1_LANGUAGES,
-  TIER_2_LANGUAGES,
-  TIER_3_LANGUAGES,
-  isLanguageSupported,
-  getLanguageInfo,
-  getLanguageTier,
-  getLanguagesByTier,
-  normalizeLocaleCode,
-} from './languages';
-export type { SupportedLanguage, LanguageTier } from './languages';
+import * as serverIntegrations from './integrations/server';
+
+/** Legacy namespace: loading the server API does not load optional React dependencies. */
+export const integrations: typeof serverIntegrations & {
+  readonly AutoTranslate: typeof import('./integrations/react-auto-translate').AutoTranslate;
+} = {
+  ...serverIntegrations,
+  get AutoTranslate(): typeof import('./integrations/react-auto-translate').AutoTranslate {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- preserve the synchronous legacy API while loading React only on access
+    return require('./integrations/react-auto-translate').AutoTranslate;
+  },
+};

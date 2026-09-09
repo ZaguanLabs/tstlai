@@ -163,7 +163,6 @@ Example: { "translations": ["translated string 1", "translated string 2"] }
 export class OpenAIProvider extends BaseAIProvider {
   private client: OpenAI;
   private model: string;
-  private clientConfig: { apiKey: string; baseURL: string; timeout: number };
   private generationOptions: Pick<
     AIProviderConfig,
     'temperature' | 'maxCompletionTokens' | 'reasoningEffort'
@@ -190,8 +189,7 @@ export class OpenAIProvider extends BaseAIProvider {
     const resolvedBaseUrl = baseUrl || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
     const resolvedTimeout = timeout || 120000; // Default 120s to allow for cold-start translation of full pages
 
-    // Store config for client recreation
-    this.clientConfig = {
+    const clientConfig = {
       apiKey: resolvedApiKey,
       baseURL: resolvedBaseUrl,
       timeout: resolvedTimeout,
@@ -200,9 +198,7 @@ export class OpenAIProvider extends BaseAIProvider {
     // Debug logging (only in development)
     if (process.env.NODE_ENV === 'development' || process.env.TSTLAI_DEBUG) {
       console.log(`[OpenAIProvider] Initializing with:`);
-      console.log(
-        `  - API Key: ${resolvedApiKey ? resolvedApiKey.substring(0, 15) + '...' : 'NOT SET'}`,
-      );
+      console.log(`  - API Key: ${resolvedApiKey ? 'configured' : 'NOT SET'}`);
       console.log(`  - Model: ${this.model}`);
       console.log(`  - Base URL: ${resolvedBaseUrl}`);
       console.log(`  - Timeout: ${resolvedTimeout}ms`);
@@ -212,12 +208,7 @@ export class OpenAIProvider extends BaseAIProvider {
       console.warn('[OpenAIProvider] API Key not provided and not found in environment variables.');
     }
 
-    this.client = new OpenAI(this.clientConfig);
-  }
-
-  private recreateClient(): void {
-    console.warn('[OpenAIProvider] Recreating client due to stale connection');
-    this.client = new OpenAI(this.clientConfig);
+    this.client = new OpenAI(clientConfig);
   }
 
   private buildRequest(
@@ -310,26 +301,7 @@ export class OpenAIProvider extends BaseAIProvider {
     };
 
     try {
-      let content: string;
-      try {
-        content = await makeRequest();
-      } catch (firstError) {
-        // If we get an undefined response or connection error, recreate client and retry once
-        const isStaleConnection =
-          firstError instanceof TypeError ||
-          (firstError instanceof Error &&
-            (firstError.message.includes('undefined') ||
-              firstError.message.includes('ECONNRESET') ||
-              firstError.message.includes('socket hang up')));
-
-        if (isStaleConnection && !options.signal?.aborted) {
-          this.recreateClient();
-          content = await makeRequest();
-        } else {
-          throw firstError;
-        }
-      }
-
+      const content = await makeRequest();
       return this.parseTranslations(content, texts.length);
     } catch (error) {
       if (!options.signal?.aborted) console.error('OpenAI Translation Error:', error);

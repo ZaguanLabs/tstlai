@@ -350,3 +350,17 @@ The generation instance closes and releases its memory cache when it finishes.
 Programmatic `generateTranslations` calls accept an optional `signal` for
 cancellation. Cancellation rejects immediately and retains files already completed;
 it does not write a partially translated language file.
+
+## Programmatic imports
+
+Importing the CLI entry point does not execute the command or read process arguments:
+
+```typescript
+import { generateTranslations, TranslationGenerationError } from 'tstlai/cli';
+
+const results = await generateTranslations({
+  inputFile: 'messages/en.json',
+  outputDir: 'messages/generated',
+  languages: ['nb', 'es'],
+});
+```

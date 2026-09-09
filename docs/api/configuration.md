@@ -7,8 +7,8 @@ The `Tstlai` constructor accepts a configuration object matching the `Translatio
 ```typescript
 interface TranslationConfig {
   targetLang: string;
-  provider: AIProviderConfig;
-  cache?: CacheConfig;
+  provider: AIProviderConfig | AIProvider;
+  cache?: CacheConfig | TranslationCache;
   batching?: BatchingConfig;
   excludedTerms?: string[];
   translationContext?: string;
@@ -92,6 +92,46 @@ has passed validation.
 Legacy root arrays still stream progressively. Legacy objects with a differently
 named array remain supported, but are validated in full before their strings are
 emitted, so unrelated metadata cannot be mistaken for translations.
+
+### Custom providers and caches
+
+Pass an `AIProvider` implementation directly to use another SDK or backend:
+
+```typescript
+import { Tstlai, type AIProvider, type TranslationCache } from 'tstlai/core';
+
+const provider: AIProvider = {
+  async translate(texts, targetLang, excludedTerms, context, glossary, style, options) {
+    // Your implementation must return one string per input and honor options?.signal.
+    return myTranslationBackend(texts, targetLang, { signal: options?.signal });
+  },
+  getModelInfo() {
+    return { name: 'my-backend/model/config-v1', capabilities: ['translation'] };
+  },
+};
+const translator = new Tstlai({ targetLang: 'nb', provider });
+```
+
+Use a stable, distinct `getModelInfo().name` for each custom backend/model/settings
+combination that can produce different results; it participates in cache identity.
+Providers can also implement `translateStream` and `supportsStreaming`.
+
+A custom `TranslationCache` instance can similarly be passed as `cache`; it must
+implement `get` and `set`, and may implement `getMany`, `setMany`, and `disconnect`.
+`translator.close()` calls the supplied cache's `disconnect` method. If several
+translators share an externally managed cache, coordinate its shutdown or omit
+`disconnect` from the passed wrapper.
+
+**Configuration correction:** `{ type: 'custom' }`, `{ type: 'google' }`, and
+`{ type: 'anthropic' }` previously returned fabricated `[MOCK ...]` strings; they
+now fail immediately. Pass an actual provider implementation, or use
+`{ type: 'openai', baseUrl, model }` for an OpenAI-compatible gateway such as
+Zaguán AI. Similarly, `{ type: 'sql' }` now rejects instead of silently selecting
+memory storage; pass your SQL-backed cache implementation directly.
+
+The OpenAI-compatible provider uses the SDK's retry policy without an extra
+application-level retry for arbitrary `TypeError`s. Debug logs report whether an
+API key is configured without revealing any part of it.
 
 ### Failure handling
 

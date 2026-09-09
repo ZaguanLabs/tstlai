@@ -1,6 +1,3 @@
-export { createExpressMiddleware } from './express';
-export { createFastifyPlugin } from './fastify';
-export { createRemixHandler } from './remix';
-export { createAstroMiddleware } from './astro';
-export { createNextIntlAdapter } from './next-intl';
+export * from './server';
 export { AutoTranslate } from './react-auto-translate';
+export type { AutoTranslateProps } from './react-auto-translate';

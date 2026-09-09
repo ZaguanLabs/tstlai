@@ -2,7 +2,6 @@ import * as crypto from 'crypto';
 import { TranslationPipeline, abortable, abortError } from './TranslationPipeline';
 import {
   AIProvider,
-  AIProviderConfig,
   TranslationConfig,
   TranslationCache,
   ProcessedPage,
@@ -10,7 +9,6 @@ import {
   TranslationBatchResult,
   TranslationRequestOptions,
   TranslationStreamResult,
-  CacheConfig,
 } from '../types';
 import { OpenAIProvider } from '../providers/OpenAIProvider';
 import { HTMLProcessor, TextNodeRef } from './HTMLProcessor';
@@ -94,6 +92,7 @@ export class Tstlai {
 
     // Initialize Source Language (default: 'en')
     this.sourceLang = config.sourceLang || 'en';
+    const providerConfig = 'type' in config.provider ? config.provider : undefined;
     // Version the translation identity so older context-insensitive entries are not reused.
     this.cacheNamespace =
       'v2:' +
@@ -103,7 +102,7 @@ export class Tstlai {
           JSON.stringify({
             source: normalizeLocaleCode(this.sourceLang),
             model: this.provider.getModelInfo().name,
-            baseUrl: config.provider.baseUrl || process.env.OPENAI_BASE_URL || '',
+            baseUrl: providerConfig?.baseUrl || process.env.OPENAI_BASE_URL || '',
             context: config.translationContext || '',
             glossary: Object.entries(this.config.glossary || {}).sort(([a], [b]) =>
               a.localeCompare(b),
@@ -111,8 +110,8 @@ export class Tstlai {
             style: config.style || 'neutral',
             exclusions: [...this.excludedTerms].sort(),
             temperature:
-              config.provider.temperature === undefined ? 0.1 : config.provider.temperature,
-            reasoningEffort: config.provider.reasoningEffort || 'none',
+              providerConfig?.temperature === undefined ? 0.1 : providerConfig?.temperature,
+            reasoningEffort: providerConfig?.reasoningEffort || 'none',
           }),
         )
         .digest('hex');
@@ -212,37 +211,55 @@ export class Tstlai {
     }
   }
 
-  private initializeProvider(providerConfig: AIProviderConfig): AIProvider {
-    switch (providerConfig.type) {
-      case 'openai':
-        return new OpenAIProvider(
-          providerConfig.apiKey,
-          providerConfig.model,
-          providerConfig.baseUrl,
-          providerConfig.timeout,
-          providerConfig,
-        );
-      default:
-        // Fallback / Custom
-        return {
-          translate: async (texts: string[], targetLang: string) => {
-            return texts.map((t) => `[MOCK ${targetLang}] ${t}`);
-          },
-          getModelInfo: () => ({ name: 'mock', capabilities: [] }),
-        };
+  private initializeProvider(provider: TranslationConfig['provider']): AIProvider {
+    if (!provider || typeof provider !== 'object')
+      throw new Error('A translation provider is required');
+    if ('translate' in provider) {
+      if (typeof provider.translate !== 'function' || typeof provider.getModelInfo !== 'function') {
+        throw new Error('Custom providers must implement translate() and getModelInfo()');
+      }
+      return provider;
     }
-  }
-
-  private initializeCache(cacheConfig?: CacheConfig): TranslationCache {
-    if (cacheConfig?.type === 'redis') {
-      return new RedisCache(
-        cacheConfig.connectionString,
-        cacheConfig.ttl,
-        cacheConfig.keyPrefix,
-        cacheConfig.commandTimeout,
+    if (provider.type !== 'openai') {
+      throw new Error(
+        `Unsupported provider type "${provider.type}". Use type "openai" for an OpenAI-compatible gateway, or pass an AIProvider instance.`,
       );
     }
-    return new InMemoryCache(cacheConfig?.ttl, cacheConfig?.maxEntries);
+    return new OpenAIProvider(
+      provider.apiKey,
+      provider.model,
+      provider.baseUrl,
+      provider.timeout,
+      provider,
+    );
+  }
+
+  private initializeCache(cache?: TranslationConfig['cache']): TranslationCache {
+    if (cache && ('get' in cache || 'set' in cache)) {
+      if (
+        !('get' in cache) ||
+        !('set' in cache) ||
+        typeof cache.get !== 'function' ||
+        typeof cache.set !== 'function'
+      ) {
+        throw new Error('Custom caches must implement get() and set()');
+      }
+      return cache as TranslationCache;
+    }
+    if (cache?.type === 'redis') {
+      return new RedisCache(
+        cache.connectionString,
+        cache.ttl,
+        cache.keyPrefix,
+        cache.commandTimeout,
+      );
+    }
+    if (cache && cache.type !== 'memory') {
+      throw new Error(
+        `Unsupported cache type "${cache.type}". Use memory, redis, or pass a TranslationCache instance.`,
+      );
+    }
+    return new InMemoryCache(cache?.ttl, cache?.maxEntries);
   }
 
   /**
