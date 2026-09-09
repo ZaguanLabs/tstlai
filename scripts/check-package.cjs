@@ -22,9 +22,15 @@ try {
     path.join(directory, 'package.json'),
     JSON.stringify({ name: 'tstlai-consumer-check', private: true }),
   );
-  const [packed] = JSON.parse(
-    run(npm, ['pack', '--json', '--ignore-scripts', '--pack-destination', directory], repository),
+  const packOutput = run(
+    npm,
+    ['pack', '--json', '--ignore-scripts', '--pack-destination', directory],
+    repository,
   );
+  // npm 10 can prepend prepare-hook output despite --ignore-scripts. Its JSON
+  // report starts on its own line; nested arrays are indented inside that report.
+  const reportStart = packOutput.lastIndexOf('\n[');
+  const [packed] = JSON.parse(reportStart < 0 ? packOutput : packOutput.slice(reportStart + 1));
   const metadata = require('../package.json');
   const files = new Set(packed.files.map((file) => file.path));
   for (const target of Object.values(metadata.exports)) {
