@@ -27,10 +27,9 @@ try {
     ['pack', '--json', '--ignore-scripts', '--pack-destination', directory],
     repository,
   );
-  // npm 10 can prepend prepare-hook output despite --ignore-scripts. Its JSON
-  // report starts on its own line; nested arrays are indented inside that report.
-  const reportStart = packOutput.lastIndexOf('\n[');
-  const [packed] = JSON.parse(reportStart < 0 ? packOutput : packOutput.slice(reportStart + 1));
+  // npm 10 runs prepare despite --ignore-scripts, and Husky writes its skip
+  // notice without a newline. The packing report is the following JSON array.
+  const [packed] = JSON.parse(packOutput.slice(packOutput.indexOf('[')));
   const metadata = require('../package.json');
   const files = new Set(packed.files.map((file) => file.path));
   for (const target of Object.values(metadata.exports)) {
