@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.8] - 2026-09-09
+
+### Changed
+
+- Default reasoning effort to `none` for batch and streaming translation requests.
+- Add configurable temperature, completion token budget, and reasoning effort.
+
+### Fixed
+
+- Request JSON output consistently for streaming and batch translations.
+- Reject malformed or incomplete translation responses and unsuccessful finish reasons.
+
 ## [1.2.6] - 2024-12-18
 
 ### Fixed

@@ -1,6 +1,7 @@
 import * as crypto from 'crypto';
 import {
   AIProvider,
+  AIProviderConfig,
   TranslationConfig,
   TranslationCache,
   ProcessedPage,
@@ -138,7 +139,7 @@ export class Tstlai {
     return this.cache.get(cacheKey);
   }
 
-  private initializeProvider(providerConfig: any): AIProvider {
+  private initializeProvider(providerConfig: AIProviderConfig): AIProvider {
     switch (providerConfig.type) {
       case 'openai':
         return new OpenAIProvider(
@@ -146,6 +147,7 @@ export class Tstlai {
           providerConfig.model,
           providerConfig.baseUrl,
           providerConfig.timeout,
+          providerConfig,
         );
       default:
         // Fallback / Custom

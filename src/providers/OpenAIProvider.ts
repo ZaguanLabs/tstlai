@@ -1,7 +1,7 @@
 import { OpenAI } from 'openai';
 import { BaseAIProvider } from './BaseAIProvider';
 import { SUPPORTED_LANGUAGES, SHORT_CODE_DEFAULTS, normalizeLocaleCode } from '../languages';
-import type { TranslationStyle } from '../types';
+import type { AIProviderConfig, TranslationStyle } from '../types';
 
 /**
  * Build a mapping of locale codes to human-readable language names.
@@ -163,9 +163,27 @@ export class OpenAIProvider extends BaseAIProvider {
   private client: OpenAI;
   private model: string;
   private clientConfig: { apiKey: string; baseURL: string; timeout: number };
+  private generationOptions: Pick<
+    AIProviderConfig,
+    'temperature' | 'maxCompletionTokens' | 'reasoningEffort'
+  >;
 
-  constructor(apiKey?: string, model?: string, baseUrl?: string, timeout?: number) {
+  constructor(
+    apiKey?: string,
+    model?: string,
+    baseUrl?: string,
+    timeout?: number,
+    generationOptions: OpenAIProvider['generationOptions'] = {},
+  ) {
     super();
+    if (
+      generationOptions.maxCompletionTokens !== undefined &&
+      (!Number.isInteger(generationOptions.maxCompletionTokens) ||
+        generationOptions.maxCompletionTokens <= 0)
+    ) {
+      throw new Error('maxCompletionTokens must be a positive integer');
+    }
+    this.generationOptions = { ...generationOptions };
     const resolvedApiKey = apiKey || process.env.OPENAI_API_KEY || '';
     this.model = model || process.env.OPENAI_MODEL || 'gpt-5.2-mini';
     const resolvedBaseUrl = baseUrl || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
@@ -201,6 +219,56 @@ export class OpenAIProvider extends BaseAIProvider {
     this.client = new OpenAI(this.clientConfig);
   }
 
+  private buildRequest(
+    texts: string[],
+    systemPrompt: string,
+  ): OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming {
+    const {
+      temperature = 0.1,
+      maxCompletionTokens,
+      reasoningEffort = 'none',
+    } = this.generationOptions;
+    return {
+      model: this.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: JSON.stringify(texts) },
+      ],
+      response_format: { type: 'json_object' },
+      ...(temperature !== null ? { temperature } : {}),
+      ...(maxCompletionTokens !== undefined ? { max_completion_tokens: maxCompletionTokens } : {}),
+      reasoning_effort: reasoningEffort,
+    };
+  }
+
+  private parseTranslations(content: string, expectedCount: number): string[] {
+    const parsed: unknown = JSON.parse(content);
+    // Retain support for legacy array responses and objects with a differently named array.
+    const translations = Array.isArray(parsed)
+      ? parsed
+      : parsed && typeof parsed === 'object'
+        ? 'translations' in parsed
+          ? parsed.translations
+          : Object.values(parsed).find(Array.isArray)
+        : undefined;
+
+    if (!Array.isArray(translations) || !translations.every((value) => typeof value === 'string')) {
+      throw new Error('Invalid translation response: expected an array of strings');
+    }
+    if (translations.length !== expectedCount) {
+      throw new Error(
+        `Incomplete translation response: expected ${expectedCount} translations, received ${translations.length}`,
+      );
+    }
+    return translations;
+  }
+
+  private checkFinishReason(reason: string | null | undefined): void {
+    if (reason && reason !== 'stop') {
+      throw new Error(`Translation did not complete (finish_reason: ${reason})`);
+    }
+  }
+
   async translate(
     texts: string[],
     targetLang: string,
@@ -220,15 +288,9 @@ export class OpenAIProvider extends BaseAIProvider {
     );
 
     const makeRequest = async () => {
-      const response = await this.client.chat.completions.create({
-        model: this.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: JSON.stringify(texts) },
-        ],
-        temperature: 0.1, // Low temperature for consistent, deterministic translations
-        response_format: { type: 'json_object' }, // Matches prompt's { "translations": [...] } format
-      });
+      const response = await this.client.chat.completions.create(
+        this.buildRequest(texts, systemPrompt),
+      );
 
       if (!response) {
         throw new Error('OpenAI client returned undefined response');
@@ -236,6 +298,7 @@ export class OpenAIProvider extends BaseAIProvider {
       if (!response.choices || response.choices.length === 0) {
         throw new Error('Empty response from OpenAI - no choices returned');
       }
+      this.checkFinishReason(response.choices[0].finish_reason);
       const content = response.choices[0]?.message?.content;
       if (!content) {
         throw new Error('No content received from OpenAI');
@@ -264,26 +327,7 @@ export class OpenAIProvider extends BaseAIProvider {
         }
       }
 
-      const parsed = JSON.parse(content);
-
-      // Expected format: { "translations": ["...", "..."] }
-      if (parsed.translations && Array.isArray(parsed.translations)) {
-        return parsed.translations;
-      }
-
-      // Fallback: handle legacy array format or find first array in object
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-
-      const values = Object.values(parsed);
-      const arrayValue = values.find((v) => Array.isArray(v));
-      if (arrayValue) {
-        return arrayValue as string[];
-      }
-
-      console.warn('Unexpected JSON structure from OpenAI:', parsed);
-      throw new Error('Invalid JSON structure received from OpenAI');
+      return this.parseTranslations(content, texts.length);
     } catch (error) {
       console.error('OpenAI Translation Error:', error);
       throw error;
@@ -314,18 +358,14 @@ export class OpenAIProvider extends BaseAIProvider {
 
     try {
       const stream = await this.client.chat.completions.create({
-        model: this.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: JSON.stringify(texts) },
-        ],
-        temperature: 0.1, // Low temperature for consistent, deterministic translations
+        ...this.buildRequest(texts, systemPrompt),
         stream: true,
       });
 
       // Incremental JSON array parser state
       // Response format: { "translations": ["str1", "str2", ...] }
       let buffer = '';
+      let fullContent = '';
       let inTranslationsArray = false;
       let inString = false;
       let escapeNext = false;
@@ -334,7 +374,9 @@ export class OpenAIProvider extends BaseAIProvider {
       let elementIndex = 0;
 
       for await (const chunk of stream) {
+        this.checkFinishReason(chunk.choices?.[0]?.finish_reason);
         const content = chunk.choices?.[0]?.delta?.content || '';
+        fullContent += content;
         buffer += content;
 
         // Process buffer character by character
@@ -444,6 +486,13 @@ export class OpenAIProvider extends BaseAIProvider {
             currentElement += char;
           }
         }
+      }
+      // An empty, malformed or truncated stream must not be reported as a successful translation.
+      this.parseTranslations(fullContent, texts.length);
+      if (elementIndex !== texts.length) {
+        throw new Error(
+          `Incomplete translation stream: expected ${texts.length} translations, received ${elementIndex}`,
+        );
       }
     } catch (error) {
       console.error('OpenAI Streaming Translation Error:', error);

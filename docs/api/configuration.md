@@ -47,12 +47,42 @@ Can also be set via the `TSTLAI_EXCLUDED_TEXT` environment variable (comma-separ
 **Type:** `AIProviderConfig`
 **Required:** Yes
 
-| Field     | Type       | Description                                                           |
-| --------- | ---------- | --------------------------------------------------------------------- |
-| `type`    | `'openai'` | Currently only OpenAI is supported.                                   |
-| `apiKey`  | `string`   | OpenAI API Key. Defaults to `OPENAI_API_KEY` env var.                 |
-| `model`   | `string`   | Model ID (e.g. `gpt-3.5-turbo`, `gpt-4`). Defaults to `OPENAI_MODEL`. |
-| `baseUrl` | `string`   | Custom API URL. Defaults to `OPENAI_BASE_URL`.                        |
+| Field                 | Type                                                            | Description                                                                                                            |
+| --------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `type`                | `'openai'`                                                      | OpenAI-compatible API, including Zaguán AI.                                                                            |
+| `apiKey`              | `string`                                                        | API key. Defaults to `OPENAI_API_KEY` env var.                                                                         |
+| `model`               | `string`                                                        | Exact gateway model ID. Defaults to `OPENAI_MODEL`, then `gpt-5.2-mini`.                                               |
+| `baseUrl`             | `string`                                                        | Custom API URL. Defaults to `OPENAI_BASE_URL`.                                                                         |
+| `timeout`             | `number`                                                        | Request timeout in milliseconds (default: `120000`).                                                                   |
+| `temperature`         | `number \| null`                                                | Default: `0.1`. Set `null` to omit the parameter and use the model's default.                                          |
+| `maxCompletionTokens` | `number`                                                        | Optional positive output budget, including reasoning tokens. Sent as `max_completion_tokens`; omitted by default.      |
+| `reasoningEffort`     | `'none' \| 'minimal' \| 'low' \| 'medium' \| 'high' \| 'xhigh'` | Sent as `reasoning_effort`. Default: `'none'` for translation speed. Supported values depend on the model and gateway. |
+
+Both batch and streaming requests send `response_format: { type: 'json_object' }`
+and use the same generation settings. For example:
+
+```typescript
+const translator = new Tstlai({
+  targetLang: 'nb',
+  provider: {
+    type: 'openai',
+    apiKey: process.env.OPENAI_API_KEY,
+    baseUrl: process.env.OPENAI_BASE_URL,
+    model: 'google/gemini-3.8-flash',
+    reasoningEffort: 'none', // Default; can be overridden for other models
+  },
+});
+```
+
+The model ID is forwarded unchanged. A gateway error such as
+`No provider found for model` means the gateway could not route that model;
+verify its registered model ID and provider mapping. Adding tools or generation
+parameters cannot repair a missing route. tstlai does not send `max_tokens`;
+a gateway log showing `max_tokens: 0` may reflect its default for an omitted field.
+
+The provider rejects malformed responses, translation count mismatches and
+unsuccessful finish reasons instead of treating them as complete. Streaming
+translations already yielded before an error may have been displayed or cached.
 
 ### `cache`
 
@@ -71,7 +101,7 @@ Can also be set via the `TSTLAI_EXCLUDED_TEXT` environment variable (comma-separ
 | Variable               | Description                                                                              |
 | ---------------------- | ---------------------------------------------------------------------------------------- |
 | `OPENAI_API_KEY`       | OpenAI API Key                                                                           |
-| `OPENAI_MODEL`         | Model ID (default: `gpt-3.5-turbo`)                                                      |
+| `OPENAI_MODEL`         | Model ID (default: `gpt-5.2-mini`)                                                       |
 | `OPENAI_BASE_URL`      | API Base URL                                                                             |
 | `REDIS_URL`            | Redis connection string                                                                  |
 | `TSTLAI_EXCLUDED_TEXT` | Comma-separated list of terms to exclude from translation (e.g. `BrandName,AnotherTerm`) |

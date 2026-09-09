@@ -31,6 +31,12 @@ export interface AIProviderConfig {
   model?: string;
   baseUrl?: string;
   timeout?: number; // ms
+  /** Sampling temperature; default 0.1. Set null to use the model's default. */
+  temperature?: number | null;
+  /** Optional output budget, including reasoning tokens. Sent as max_completion_tokens. */
+  maxCompletionTokens?: number;
+  /** Reasoning effort; default 'none'. Supported values depend on the model and gateway. */
+  reasoningEffort?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
 }
 
 export interface CacheConfig {
